@@ -68,7 +68,7 @@ any party could implement it against any FDP:
   implementation exposes (open question 2 in the vision doc).
 - Versioning statement for the contract itself.
 
-### 1.2 [ ] FDP client layer: LDP + root discovery
+### 1.2 [x] FDP client layer: LDP + root discovery
 
 - `fdp/ldp.py`: content-negotiated GET of records and containers
   (`text/turtle`, `application/ld+json`), Link-header parsing (LDP types,

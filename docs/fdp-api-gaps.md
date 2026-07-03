@@ -81,9 +81,31 @@ Phase 19). Link entries both ways when triaged.
 - **Severity:** degrading.
 - **Triage:** untriaged.
 
+## G-04 — FAIR Signposting relations absent on the Java reference implementation
+
+- **Capability:** `signposting` (degrades, does not block)
+- **Blocks / degrades:** [`get_record`](mcp-tool-surface.md#53-get_record) — the
+  `links` block (`cite_as`, `described_by`, `license`, `authors`, `item`,
+  `collection`, `constrained_by`) is populated from the `Link` header. When the
+  FDP emits no FAIR-Signposting relations, `get_record.links` is sparse and
+  `get_schema` loses the per-record `constrainedBy` shape-resolution path.
+- **Implementations affected:** FDPneo emits FAIR Signposting Level 1 on every
+  `GET`/`HEAD`. The Java reference implementation emits (at most) the LDP
+  interaction-model `type` links, not the citation/navigation relations.
+- **Public-surface status:** signposting is specified (ADR-0017 references the
+  FAIR Signposting profile) but not uniformly implemented. The bridge falls back
+  to the RDF graph where it can (parent via `dct:isPartOf`, members via
+  `ldp:contains`, `constrainedBy` via the graph triple), but `cite-as` and the
+  per-media-type `describedby` set have no graph equivalent.
+- **Suggested resolution:** make FAIR Signposting Level 1 a conformance
+  expectation, or specify graph-level equivalents the bridge can rely on.
+- **Severity:** interop / degrading. Confirmed by the task-1.2 client-layer
+  fixtures (`tests/unit/test_fdp_ldp.py::test_java_jsonld_record_parses_with_sparse_links`).
+- **Triage:** untriaged.
+
 ---
 
-*Entries G-01…G-03 are seeded from the task-1.1 surface survey. Task 1.3 adds the
-concrete request/response divergences found while writing respx fixtures for both
-implementations (e.g. serialization quirks, container paging differences,
-signposting completeness), each tied to the tool it affects.*
+*Entries G-01…G-03 are seeded from the task-1.1 surface survey; G-04 is the first
+confirmed-by-fixture divergence from task 1.2. Task 1.3 adds the SPARQL/search/
+shapes client divergences found while writing fixtures for both implementations,
+each tied to the tool it affects.*

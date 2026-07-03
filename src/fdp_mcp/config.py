@@ -78,6 +78,15 @@ class FdpMcpSettings(BaseSettings):
     # rejected (503) rather than growing memory unbounded (a DoS control).
     max_concurrent_sessions: int = 100
 
+    # --- FDP client (outbound HTTP to the target FDP) ------------------------
+    # Per-request timeout for every FDP call (connect + read). Bounds how long a
+    # single upstream call can hang before it is aborted.
+    fdp_timeout_seconds: float = 30.0
+    # Hard cap on a single FDP response body. Oversized responses are aborted
+    # mid-stream rather than buffered (a DoS control mirroring the server's
+    # response-size discipline).
+    fdp_max_response_bytes: int = 10 * 1024 * 1024  # 10 MiB
+
     @property
     def fdp_origin(self) -> str:
         """The FDP's ``scheme://host[:port]`` origin — the egress allow-list.
