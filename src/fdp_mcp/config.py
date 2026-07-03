@@ -67,6 +67,17 @@ class FdpMcpSettings(BaseSettings):
 
     log_level: LogLevel = "info"
 
+    # --- Session limits (streamable-HTTP transport) --------------------------
+    # A session is dropped once it has been idle this long, bounding how long a
+    # forwarded credential lingers in memory after the client goes quiet.
+    session_idle_timeout_seconds: float = 300.0
+    # Absolute ceiling on a session's lifetime regardless of activity — a
+    # long-lived streaming connection cannot outlive this.
+    session_lifetime_timeout_seconds: float = 3600.0
+    # Cap on concurrently established sessions; new sessions past the cap are
+    # rejected (503) rather than growing memory unbounded (a DoS control).
+    max_concurrent_sessions: int = 100
+
     @property
     def fdp_origin(self) -> str:
         """The FDP's ``scheme://host[:port]`` origin — the egress allow-list.

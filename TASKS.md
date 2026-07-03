@@ -33,7 +33,7 @@ Status markers: `[x]` completed, `[~]` partially done, `[ ]` not started.
   `../server/Dockerfile`).
 - Smoke test: settings load from env; app module imports cleanly.
 
-### 0.2 [ ] MCP server assembly and transports
+### 0.2 [x] MCP server assembly and transports
 
 - `server.py`: MCP server instance (official SDK), streamable-HTTP transport
   as the default (ASGI, uvicorn) and stdio transport behind a flag for local
