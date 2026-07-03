@@ -1,0 +1,18 @@
+# Keep the build context small + deterministic. The image needs pyproject,
+# uv.lock, README.md, and src/ — everything else is excluded.
+.venv
+.git
+.gitignore
+.github
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+tests
+docs
+# Never bake secrets / local env into the image.
+.env
+.env.*
