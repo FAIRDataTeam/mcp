@@ -52,7 +52,7 @@ References: ADR-0018 §2/§3.
 
 ## Phase 1 — Contract and FDP client layer
 
-### 1.1 [ ] Tool-surface specification (`docs/mcp-tool-surface.md`)
+### 1.1 [x] Tool-surface specification (`docs/mcp-tool-surface.md`)
 
 The contract this repo implements — written implementation-agnostically so
 any party could implement it against any FDP:
