@@ -33,10 +33,26 @@ every capability it cannot implement cleanly is a documented public-API gap —
 tracked in [`docs/fdp-api-gaps.md`](docs/fdp-api-gaps.md) and fed back into
 the server roadmap.
 
+## Getting started
+
+See [`docs/agent-quickstart.md`](docs/agent-quickstart.md) for one-command
+bring-up, MCP client configuration (Claude and generic clients), and the
+scripted three-minute demo.
+
+```bash
+docker run --rm -p 8080:8000 \
+  -e FDP_BASE_URL=https://your-fdp.example.org \
+  ghcr.io/<org>/fdp-mcp:latest
+```
+
 ## Status
 
-Pre-implementation. `TASKS.md` holds the phased build plan; `CLAUDE.md` holds
-the conventions and ground rules for contributors and coding agents.
+v0.1.0 (release prep) — the full read-only tool surface (eight tools), the
+implementation-agnostic contract, and unit/conformance/integration suites are in
+place. `CHANGELOG.md` records the release; `TASKS.md` holds the phased build
+plan; `CLAUDE.md` holds the conventions and ground rules for contributors and
+coding agents. Publishing the image and tagging the release are the remaining
+steps.
 
 ## License
 

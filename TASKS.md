@@ -152,7 +152,7 @@ References: vision doc §4/§5.
 - Coordinate `../server`: add the `fdp-mcp` service to the standard deploy
   profiles (server TASKS.md Phase 19) so FDPneo installs come up agent-ready.
 
-### 3.3 [ ] v0.1.0 release
+### 3.3 [~] v0.1.0 release
 
 - Image published; README badges/instructions verified against a clean
   machine; release notes; tag.
