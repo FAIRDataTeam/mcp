@@ -32,17 +32,9 @@ from fdp_mcp.fdp.errors import (
     raise_for_status,
 )
 from fdp_mcp.fdp.links import LinkSet
+from fdp_mcp.fdp.rdf import parse_graph
 
 LDP = Namespace("http://www.w3.org/ns/ldp#")
-
-# Response media type → rdflib parser format.
-_MEDIA_TO_RDFLIB: dict[str, str] = {
-    "text/turtle": "turtle",
-    "application/ld+json": "json-ld",
-    "application/rdf+xml": "xml",
-    "application/n-triples": "nt",
-    "application/n-quads": "nquads",
-}
 
 # rdf:type IRIs that describe structure/vocabulary rather than a resource kind;
 # excluded when deriving kinds from a record's types.
@@ -144,7 +136,7 @@ async def fetch_resource(
     """
     doc = await client.get(iri, accept=accept)
     raise_for_status(doc.status, iri=iri)
-    graph = _parse_graph(doc.text, doc.media_type, iri)
+    graph = parse_graph(doc.text, doc.media_type, public_id=iri)
     subject = _resolve_subject(graph, iri, doc.url)
     return LdpResource(
         iri=subject,
@@ -156,16 +148,6 @@ async def fetch_resource(
         status=doc.status,
         page=_page_info(doc.headers),
     )
-
-
-def _parse_graph(text: str, media_type: str, iri: str) -> Graph:
-    fmt = _MEDIA_TO_RDFLIB.get(media_type, "turtle")
-    graph = Graph()
-    try:
-        graph.parse(data=text, format=fmt, publicID=iri)
-    except Exception as exc:  # rdflib raises a variety of parse errors
-        raise FdpUpstreamError(f"could not parse {media_type or '?'} from {iri}: {exc}") from exc
-    return graph
 
 
 def _resolve_subject(graph: Graph, requested: str, response_url: str) -> str:

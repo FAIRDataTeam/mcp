@@ -103,9 +103,49 @@ Phase 19). Link entries both ways when triaged.
   fixtures (`tests/unit/test_fdp_ldp.py::test_java_jsonld_record_parses_with_sparse_links`).
 - **Triage:** untriaged.
 
+## G-05 — SPARQL/search endpoint locations are not discoverable
+
+- **Capability:** `sparql`, `search-api`
+- **Blocks / degrades:** [`sparql_query`](mcp-tool-surface.md#56-sparql_query) and
+  [`search`](mcp-tool-surface.md#55-search) — the bridge must be *told* where the
+  endpoints are (settings `fdp_sparql_path` / `fdp_search_path`, default
+  `/fdp-api/sparql` and `/fdp-api/search`) because there is no specified way to
+  discover them from the FDP root.
+- **Implementations affected:** all. The FDP spec standardises neither a SPARQL
+  nor a search endpoint location, nor a discovery mechanism (e.g. a
+  `void:sparqlEndpoint` triple or a DCAT `DataService` on the root record).
+- **Public-surface status:** the endpoints exist on FDPneo at known paths, but a
+  bridge pointed at an arbitrary FDP cannot find them without configuration; a
+  wrong/absent path degrades to `unsupported` (G-03) rather than being resolved.
+- **Suggested resolution:** advertise service endpoints in the root metadata
+  (`void:sparqlEndpoint`, a `DataService` with `dcat:endpointURL`) so the bridge
+  can discover rather than be configured.
+- **Severity:** interop / degrading. Surfaced while wiring the task-1.3 SPARQL/
+  search clients (configurable endpoint paths).
+- **Triage:** untriaged.
+
+## G-06 — SHACL shape closure (`sh:node`) is endpoint-specific
+
+- **Capability:** `shapes`
+- **Blocks / degrades:** [`get_schema`](mcp-tool-surface.md#54-get_schema) — the
+  digest reflects only the shape's **direct** `sh:property` constraints. Shapes
+  composed via `sh:node` are not followed, so inherited properties are missing
+  from the digest unless the FDP serves the merged closure.
+- **Implementations affected:** FDPneo can serve the composed closure
+  (`/fdp-api/schemas/{id}?composed=true`, `/fdp-api/{prefix}/spec`), but that is
+  an FDPneo-specific query/endpoint; there is no cross-implementation way to ask
+  for the closure when resolving a shape via `constrainedBy`.
+- **Public-surface status:** `constrainedBy` yields one shape document; whether
+  it is self-contained or references others via `sh:node` varies, and there is no
+  standard "give me the closure" request.
+- **Suggested resolution:** specify that a `constrainedBy` shape is served as its
+  full closure, or add a standard closure request parameter.
+- **Severity:** degrading. Surfaced while implementing the task-1.3 shape digest.
+- **Triage:** untriaged.
+
 ---
 
 *Entries G-01…G-03 are seeded from the task-1.1 surface survey; G-04 is the first
-confirmed-by-fixture divergence from task 1.2. Task 1.3 adds the SPARQL/search/
-shapes client divergences found while writing fixtures for both implementations,
-each tied to the tool it affects.*
+fixture-confirmed divergence (task 1.2); G-05 and G-06 were surfaced while wiring
+the task-1.3 SPARQL/search/shapes clients. Each entry is tied to the tool it
+blocks or degrades; the server repo triages them into Phase 19.*

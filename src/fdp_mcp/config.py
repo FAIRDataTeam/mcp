@@ -87,6 +87,13 @@ class FdpMcpSettings(BaseSettings):
     # response-size discipline).
     fdp_max_response_bytes: int = 10 * 1024 * 1024  # 10 MiB
 
+    # Endpoint paths for the optional SPARQL and search surfaces. The FDP spec
+    # does not standardise these, so they are configurable; the defaults match
+    # FDPneo. Operators of other FDPs override them (or the tools degrade to
+    # `unsupported` when the path 404s). See fdp-api-gaps.md G-05.
+    fdp_sparql_path: str = "/fdp-api/sparql"
+    fdp_search_path: str = "/fdp-api/search"
+
     @property
     def fdp_origin(self) -> str:
         """The FDP's ``scheme://host[:port]`` origin — the egress allow-list.
@@ -100,6 +107,19 @@ class FdpMcpSettings(BaseSettings):
         if url.port is not None:
             origin = f"{origin}:{url.port}"
         return origin
+
+    def _endpoint(self, path: str) -> str:
+        return f"{str(self.fdp_base_url).rstrip('/')}/{path.lstrip('/')}"
+
+    @property
+    def fdp_sparql_endpoint(self) -> str:
+        """Absolute URL of the SPARQL endpoint (``fdp_base_url`` + configured path)."""
+        return self._endpoint(self.fdp_sparql_path)
+
+    @property
+    def fdp_search_endpoint(self) -> str:
+        """Absolute URL of the search endpoint (``fdp_base_url`` + configured path)."""
+        return self._endpoint(self.fdp_search_path)
 
 
 @lru_cache(maxsize=1)

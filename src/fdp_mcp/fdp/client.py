@@ -89,7 +89,29 @@ class FdpClient:
             )
 
     async def get(self, url: str, *, accept: str = DEFAULT_RDF_ACCEPT) -> FetchedDocument:
-        """GET ``url`` with the given ``Accept``, enforcing egress + size cap.
+        """GET ``url`` with the given ``Accept``, enforcing egress + size cap."""
+        return await self._fetch("GET", url, headers={"accept": accept})
+
+    async def post(
+        self, url: str, *, content: str | bytes, content_type: str, accept: str
+    ) -> FetchedDocument:
+        """POST a body to ``url`` (e.g. a SPARQL query, a search JSON), guarded."""
+        return await self._fetch(
+            "POST",
+            url,
+            headers={"accept": accept, "content-type": content_type},
+            content=content,
+        )
+
+    async def _fetch(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str],
+        content: str | bytes | None = None,
+    ) -> FetchedDocument:
+        """Send one request, enforcing egress + size cap.
 
         Raises ``EgressError`` (off-origin), ``FdpTimeoutError`` (timeout),
         ``FdpResponseTooLargeError`` (over cap), or ``FdpUpstreamError``
@@ -101,7 +123,9 @@ class FdpClient:
         # event hook is the backstop for redirect hops.
         self._check_egress(target)
         try:
-            async with self._client.stream("GET", target, headers={"accept": accept}) as response:
+            async with self._client.stream(
+                method, target, headers=headers, content=content
+            ) as response:
                 declared = response.headers.get("content-length")
                 if declared is not None and declared.isdigit() and int(declared) > self._max_bytes:
                     raise FdpResponseTooLargeError(

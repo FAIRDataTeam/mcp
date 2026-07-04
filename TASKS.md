@@ -85,7 +85,7 @@ any party could implement it against any FDP:
 
 References: CLAUDE.md ground rules; ADR-0018 §1/§3.
 
-### 1.3 [ ] FDP client layer: SPARQL, search, shapes
+### 1.3 [x] FDP client layer: SPARQL, search, shapes
 
 - `fdp/sparql.py`: POST to the public `/sparql`; **read-only query forms
   only** — parse and reject updates client-side before sending; result

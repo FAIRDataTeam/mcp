@@ -46,6 +46,29 @@ class FdpUpstreamError(FdpError):
     """The FDP returned an unexpected error, or its response was unparseable."""
 
 
+class ReadOnlyError(FdpError):
+    """A write/update was requested on the read-only surface (e.g. SPARQL update)."""
+
+
+class InvalidQueryError(FdpError):
+    """A query failed validation before any network call (bad SPARQL, SERVICE)."""
+
+
+class FdpUnsupportedError(FdpError):
+    """An optional capability is absent on this FDP; the tool degrades explicitly.
+
+    Carries the machine-readable ``capability`` name (and an optional
+    ``alternative``) that the tool layer renders into the contract's
+    ``unsupported`` result (``docs/mcp-tool-surface.md`` §3.5).
+    """
+
+    def __init__(self, capability: str, reason: str, *, alternative: str | None = None) -> None:
+        super().__init__(reason)
+        self.capability = capability
+        self.reason = reason
+        self.alternative = alternative
+
+
 def raise_for_status(status: int, *, iri: str) -> None:
     """Map an FDP HTTP status onto the client error hierarchy.
 
