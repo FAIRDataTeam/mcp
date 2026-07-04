@@ -60,6 +60,7 @@ dev = [
   "pyright>=1.1.380",
   "respx>=0.21",  # httpx mocking for the FDP client-layer unit tests
   "testcontainers>=4.8",  # live FDPneo container for the integration suite
+  "jsonschema>=4.23",  # validate tool results against the tool-surface schemas
 ]
 
 [project.scripts]

@@ -131,7 +131,7 @@ References: vision doc §4/§5.
 
 ## Phase 3 — End-to-end, demo assets, release
 
-### 3.1 [ ] Integration + conformance suites
+### 3.1 [x] Integration + conformance suites
 
 - Integration: testcontainers-launched FDPneo instance; full golden-path
   session via a real MCP SDK client (initialize → list tools → search →

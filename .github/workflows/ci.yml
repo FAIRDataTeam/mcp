@@ -38,7 +38,7 @@ jobs:
       - run: uv run pyright
 
   test:
-    name: pytest (unit)
+    name: pytest (unit + conformance)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -46,10 +46,11 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen --extra dev
-      # Unit tests are fast and need no services. The testcontainers-backed
-      # integration + conformance suites (tests/integration, tests/conformance)
-      # are added as separate Docker-service jobs when populated (task 3.1).
-      - run: uv run pytest tests/unit
+      # Unit + conformance are fast and need no services; the in-process
+      # integration suite drives the server with the FDP mocked (respx), so it
+      # needs no container either. The live-FDP integration test skips unless
+      # FDP_MCP_IT_BASE_URL is set (see tests/integration/test_live_fdp.py).
+      - run: uv run pytest tests/unit tests/conformance tests/integration
 
   image:
     name: build + push image
