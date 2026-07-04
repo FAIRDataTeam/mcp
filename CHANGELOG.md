@@ -5,7 +5,7 @@ All notable changes to `fdp-mcp` are documented here. The format follows
 [semantic versioning](https://semver.org/). The **tool-surface contract** is
 versioned independently — see `docs/mcp-tool-surface.md` §10.
 
-## [0.1.0] — unreleased
+## [0.1.0] — 2026-07-04
 
 First release: a standalone MCP sidecar that exposes the metadata of any
 spec-compliant FAIR Data Point to AI agents through a read-only tool surface.

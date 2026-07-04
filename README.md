@@ -7,7 +7,7 @@ with the repository's metadata — datasets, schemas, licenses, access
 conditions — grounded in real records, cited by IRI.
 
 ```
-docker run -e FDP_BASE_URL=https://fdp.example.org ghcr.io/<org>/fdp-mcp
+docker run -e FDP_BASE_URL=https://fdp.example.org ghcr.io/fairdatateam/fdp-mcp
 ```
 
 - Works against FDPneo **and** the Java reference implementation — it consumes
@@ -42,17 +42,16 @@ scripted three-minute demo.
 ```bash
 docker run --rm -p 8080:8000 \
   -e FDP_BASE_URL=https://your-fdp.example.org \
-  ghcr.io/<org>/fdp-mcp:latest
+  ghcr.io/fairdatateam/fdp-mcp:latest
 ```
 
 ## Status
 
-v0.1.0 (release prep) — the full read-only tool surface (eight tools), the
+v0.1.0 — the full read-only tool surface (eight tools), the
 implementation-agnostic contract, and unit/conformance/integration suites are in
 place. `CHANGELOG.md` records the release; `TASKS.md` holds the phased build
 plan; `CLAUDE.md` holds the conventions and ground rules for contributors and
-coding agents. Publishing the image and tagging the release are the remaining
-steps.
+coding agents. The image publishes to GHCR from CI on push to `main`.
 
 ## License
 

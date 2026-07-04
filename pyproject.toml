@@ -67,10 +67,10 @@ dev = [
 fdp-mcp = "fdp_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/FAIRDataTeam/fdp-mcp"  # placeholder
+Homepage = "https://github.com/FAIRDataTeam/mcp"
 Documentation = "https://specs.fairdatapoint.org"
-Repository = "https://github.com/FAIRDataTeam/fdp-mcp"  # placeholder
-Issues = "https://github.com/FAIRDataTeam/fdp-mcp/issues"  # placeholder
+Repository = "https://github.com/FAIRDataTeam/mcp"
+Issues = "https://github.com/FAIRDataTeam/mcp/issues"
 
 [build-system]
 requires = ["hatchling"]
