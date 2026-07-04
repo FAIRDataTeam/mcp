@@ -19,7 +19,16 @@ from fdp_mcp.fdp.client import FdpClient
 from fdp_mcp.fdp.errors import FdpError
 from fdp_mcp.session import SessionContext, session_context_from_scope
 from fdp_mcp.shaping import result_from_error
-from fdp_mcp.tools import fdp_info, get_record, get_schema, list_records
+from fdp_mcp.tools import (
+    fdp_info,
+    get_access_conditions,
+    get_record,
+    get_schema,
+    list_data_services,
+    list_records,
+    search,
+    sparql_query,
+)
 from fdp_mcp.tools._common import Format
 
 Handler = Callable[[FdpClient], Awaitable[dict[str, Any]]]
@@ -107,7 +116,57 @@ def register_read_tools(server: FastMCP, settings: FdpMcpSettings) -> None:
             lambda client: get_schema.handle(client, kind=kind, fmt=format),
         )
 
+    async def search_tool(
+        ctx: Context[Any, Any, Any],
+        query: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """Keyword/faceted discovery within this FDP (optional; degrades if absent)."""
+        return await _run(
+            "search",
+            settings,
+            ctx,
+            lambda client: search.handle(
+                client, settings, query=query, filters=filters, limit=limit, offset=offset
+            ),
+        )
+
+    async def sparql_query_tool(ctx: Context[Any, Any, Any], query: str) -> dict[str, Any]:
+        """Read-only SPARQL over the public endpoint (optional; update forms rejected)."""
+        return await _run(
+            "sparql_query",
+            settings,
+            ctx,
+            lambda client: sparql_query.handle(client, settings, query=query),
+        )
+
+    async def get_access_conditions_tool(ctx: Context[Any, Any, Any], iri: str) -> dict[str, Any]:
+        """License, rights/ODRL, and contacts for a record — may I use it, and whom do I ask?"""
+        return await _run(
+            "get_access_conditions",
+            settings,
+            ctx,
+            lambda client: get_access_conditions.handle(client, iri=iri),
+        )
+
+    async def list_data_services_tool(
+        ctx: Context[Any, Any, Any], limit: int = 50, offset: int = 0
+    ) -> dict[str, Any]:
+        """Enumerate DCAT DataService records and their endpoints (discovery only)."""
+        return await _run(
+            "list_data_services",
+            settings,
+            ctx,
+            lambda client: list_data_services.handle(client, limit=limit, offset=offset),
+        )
+
     server.tool(name="fdp_info")(fdp_info_tool)
     server.tool(name="list_records")(list_records_tool)
     server.tool(name="get_record")(get_record_tool)
     server.tool(name="get_schema")(get_schema_tool)
+    server.tool(name="search")(search_tool)
+    server.tool(name="sparql_query")(sparql_query_tool)
+    server.tool(name="get_access_conditions")(get_access_conditions_tool)
+    server.tool(name="list_data_services")(list_data_services_tool)

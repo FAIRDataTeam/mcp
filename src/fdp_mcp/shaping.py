@@ -33,7 +33,9 @@ from fdp_mcp.fdp.errors import (
     InvalidQueryError,
     ReadOnlyError,
 )
-from fdp_mcp.fdp.ldp import LdpResource
+from fdp_mcp.fdp.ldp import LdpResource, slug_for_type
+from fdp_mcp.fdp.search import SearchHit
+from fdp_mcp.fdp.sparql import AskResult, SelectResult, SparqlResult
 
 _XSD_STRING = "http://www.w3.org/2001/XMLSchema#string"
 
@@ -110,6 +112,44 @@ def frame_record(graph: Graph, subject_iri: str) -> dict[str, Any]:
     node = _node(graph, URIRef(subject_iri), frozenset({subject_iri}), include_id=True)
     node["@context"] = dict(CONTEXT)
     return node
+
+
+def frame_graph(graph: Graph) -> dict[str, Any]:
+    """Frame a multi-subject graph (e.g. a CONSTRUCT result) as ``@graph`` JSON-LD.
+
+    Named subjects become top-level nodes; blank nodes are embedded where
+    referenced. Used for ``sparql_query`` CONSTRUCT/DESCRIBE results.
+    """
+    subjects = sorted({str(s) for s in graph.subjects() if isinstance(s, URIRef)})
+    nodes = [_node(graph, URIRef(s), frozenset({s}), include_id=True) for s in subjects]
+    return {"@context": dict(CONTEXT), "@graph": nodes}
+
+
+def sparql_result_object(result: SparqlResult) -> dict[str, Any]:
+    """Shape a SPARQL result per the contract (§5.6), by query form."""
+    if isinstance(result, SelectResult):
+        return {"form": "select", "head": result.head, "results": result.results}
+    if isinstance(result, AskResult):
+        return {"form": "ask", "boolean": result.boolean}
+    return {"form": result.form, "graph": frame_graph(result.graph)}
+
+
+def search_hit_object(hit: SearchHit) -> dict[str, Any]:
+    """Shape one search hit as a summary Record object (§5.5)."""
+    types = [hit.type_iri] if hit.type_iri else []
+    metadata: dict[str, Any] = {"@id": hit.record_iri, "@type": [compact_iri(t) for t in types]}
+    if hit.title is not None:
+        metadata["dcterms:title"] = hit.title
+    if hit.description is not None:
+        metadata["dcterms:description"] = hit.description
+    return {
+        "iri": hit.record_iri,
+        "types": types,
+        "title": hit.title,
+        "kind": slug_for_type(hit.type_iri) if hit.type_iri else None,
+        "metadata": metadata,
+        "links": {},
+    }
 
 
 def _summary_metadata(resource: LdpResource) -> dict[str, Any]:

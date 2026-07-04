@@ -113,7 +113,7 @@ References: ADR-0018 §4/§5.
 - Tests: contract-shape validation for every result; unknown IRI → structured
   NotFound envelope; both implementation fixture sets.
 
-### 2.2 [ ] Query tools: `search`, `sparql_query`, `get_access_conditions`, `list_data_services`
+### 2.2 [x] Query tools: `search`, `sparql_query`, `get_access_conditions`, `list_data_services`
 
 - `search` and `sparql_query` over 1.3, including the explicit-degrade path.
 - `get_access_conditions(iri)`: resolve the record's `dct:license`,
