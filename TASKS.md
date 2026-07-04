@@ -143,7 +143,7 @@ References: vision doc §4/§5.
 - If feasible, a second integration target against a Java reference
   implementation container; findings → gap report.
 
-### 3.2 [ ] Demo assets and quickstart
+### 3.2 [x] Demo assets and quickstart
 
 - `docs/agent-quickstart.md`: connecting Claude / generic MCP clients
   (config snippets per client), one `docker run` bring-up, and the scripted
