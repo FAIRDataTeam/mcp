@@ -46,6 +46,10 @@ class FdpUpstreamError(FdpError):
     """The FDP returned an unexpected error, or its response was unparseable."""
 
 
+class InvalidArgumentError(FdpError):
+    """A tool parameter failed validation (bad IRI, unknown kind, out-of-range)."""
+
+
 class ReadOnlyError(FdpError):
     """A write/update was requested on the read-only surface (e.g. SPARQL update)."""
 

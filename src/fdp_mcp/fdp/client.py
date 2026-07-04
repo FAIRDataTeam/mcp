@@ -18,6 +18,7 @@ from types import TracebackType
 from typing import Self
 
 import httpx
+from pydantic import SecretStr
 
 from fdp_mcp.config import FdpMcpSettings
 from fdp_mcp.fdp.errors import (
@@ -57,18 +58,24 @@ class FetchedDocument:
 class FdpClient:
     """Egress-guarded, size-capped async HTTP client for one target FDP."""
 
-    def __init__(self, settings: FdpMcpSettings) -> None:
+    def __init__(self, settings: FdpMcpSettings, *, credential: SecretStr | None = None) -> None:
         self._settings = settings
         self._base_url = httpx.URL(str(settings.fdp_base_url))
         self._allowed_origin = _origin(self._base_url)
         self._max_bytes = settings.fdp_max_response_bytes
+        headers = {"user-agent": "fdp-mcp"}
+        if credential is not None:
+            # The client's forwarded FDP credential, sent verbatim on this
+            # session's requests only. The egress guard ensures it goes solely to
+            # the FDP origin; structlog redaction keeps it out of logs.
+            headers["authorization"] = f"Bearer {credential.get_secret_value()}"
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(settings.fdp_timeout_seconds),
             follow_redirects=True,
             # Redirect hops re-enter this hook, so an off-origin redirect is
             # rejected just like a direct off-origin request.
             event_hooks={"request": [self._guard_egress]},
-            headers={"user-agent": "fdp-mcp"},
+            headers=headers,
         )
 
     @property

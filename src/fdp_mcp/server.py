@@ -24,7 +24,7 @@ memory only, is a ``SecretStr``, and is never logged (see ``log`` redaction).
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
 import anyio
 from mcp.server.fastmcp import FastMCP
@@ -35,11 +35,17 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from fdp_mcp.config import FdpMcpSettings, LogLevel, get_settings
 from fdp_mcp.log import configure_logging, get_logger
 from fdp_mcp.session import (
+    SCOPE_STATE_KEY,
     SessionContext,
     SessionLimitError,
     SessionRegistry,
     extract_bearer_credential,
+    session_context_from_scope,
 )
+from fdp_mcp.tools.registry import register_read_tools
+
+# Re-exported for callers/tests that resolve it from the server module.
+__all__ = ["build_server", "create_app", "main", "run", "session_context_from_scope"]
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
@@ -54,10 +60,6 @@ SERVER_INSTRUCTIONS = (
 )
 # The MCP endpoint path on the streamable-HTTP transport.
 STREAMABLE_HTTP_PATH = "/mcp"
-
-# ASGI scope key under which the resolved SessionContext is stashed for the
-# request. Starlette surfaces ``scope["state"]`` as ``request.state``.
-_SCOPE_STATE_KEY = "session_context"
 
 # FastMCP's log-level literal is upper-case; map from our lower-case setting.
 _FASTMCP_LEVEL: dict[LogLevel, Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]] = {
@@ -92,17 +94,8 @@ def build_server(settings: FdpMcpSettings) -> FastMCP:
     # Registered by explicit call (not decorator sugar) so the handler is a
     # referenced local — the endpoint is public and unauthenticated by design.
     server.custom_route("/healthz", methods=["GET"])(healthz)
+    register_read_tools(server, settings)
     return server
-
-
-def session_context_from_scope(scope: Scope) -> SessionContext | None:
-    """Return the SessionContext the middleware attached to this ASGI scope."""
-    state = scope.get("state")
-    if isinstance(state, dict):
-        value = cast("dict[str, object]", state).get(_SCOPE_STATE_KEY)
-        if isinstance(value, SessionContext):
-            return value
-    return None
 
 
 class SessionMiddleware:
@@ -170,7 +163,7 @@ class SessionMiddleware:
 
         state = scope.setdefault("state", {})
         if isinstance(state, dict):
-            state[_SCOPE_STATE_KEY] = context
+            state[SCOPE_STATE_KEY] = context
         # Never log the credential itself — only whether one is present.
         logger.debug(
             "session_request",

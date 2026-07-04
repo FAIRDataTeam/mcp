@@ -20,8 +20,13 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from threading import Lock
+from typing import cast
 
 from pydantic import SecretStr
+
+# ASGI scope key under which the streamable-HTTP middleware stashes the resolved
+# SessionContext; Starlette surfaces ``scope["state"]`` as ``request.state``.
+SCOPE_STATE_KEY = "session_context"
 
 
 @dataclass(frozen=True)
@@ -36,6 +41,17 @@ class SessionContext:
     def is_authenticated(self) -> bool:
         """Whether the client forwarded a bearer credential for this session."""
         return self.credential is not None
+
+
+def session_context_from_scope(scope: object) -> SessionContext | None:
+    """Return the SessionContext attached to an ASGI scope, if any."""
+    if isinstance(scope, Mapping):
+        state = cast("Mapping[str, object]", scope).get("state")
+        if isinstance(state, dict):
+            value = cast("dict[str, object]", state).get(SCOPE_STATE_KEY)
+            if isinstance(value, SessionContext):
+                return value
+    return None
 
 
 def extract_bearer_credential(headers: Mapping[str, str]) -> SecretStr | None:

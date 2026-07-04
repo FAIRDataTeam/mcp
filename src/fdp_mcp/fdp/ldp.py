@@ -242,6 +242,7 @@ class Kind:
     type_iris: tuple[str, ...]
     label: str | None
     is_root: bool
+    top_level: bool
     example_iri: str | None
 
 
@@ -259,7 +260,8 @@ def _local_name(iri: str) -> str:
     return tail or iri
 
 
-def _slug_for_type(iri: str) -> str:
+def slug_for_type(iri: str) -> str:
+    """A stable, URL-safe kebab-case slug for a type IRI (dcat:DataService → data-service)."""
     name = _local_name(iri)
     name = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", name)
     name = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", "-", name)
@@ -267,7 +269,11 @@ def _slug_for_type(iri: str) -> str:
 
 
 def _register_kind(
-    kinds: dict[tuple[str, ...], Kind], resource: LdpResource, *, is_root: bool
+    kinds: dict[tuple[str, ...], Kind],
+    resource: LdpResource,
+    *,
+    is_root: bool,
+    top_level: bool,
 ) -> None:
     types = tuple(resource.kind_type_iris)
     if not types:
@@ -276,10 +282,11 @@ def _register_kind(
         return
     primary = types[0]
     kinds[types] = Kind(
-        slug=_slug_for_type(primary),
+        slug=slug_for_type(primary),
         type_iris=types,
         label=_local_name(primary),
         is_root=is_root,
+        top_level=top_level,
         example_iri=resource.iri,
     )
 
@@ -289,14 +296,16 @@ async def discover_root(client: FdpClient, *, max_fetches: int = 50) -> RootDisc
 
     Kinds are derived from the ``rdf:type``s of records found by a bounded
     breadth-first walk of the containment tree (descending only into
-    containers). ``max_fetches`` bounds the walk; ``truncated`` reports whether
+    containers). Kinds whose records sit directly under the root are marked
+    ``top_level``. ``max_fetches`` bounds the walk; ``truncated`` reports whether
     the cap was reached before the tree was exhausted.
     """
     root = await fetch_resource(client, client.base_url)
     kinds: dict[tuple[str, ...], Kind] = {}
-    _register_kind(kinds, root, is_root=True)
+    _register_kind(kinds, root, is_root=True, top_level=False)
 
-    queue: deque[str] = deque(root.member_iris)
+    # BFS with depth so direct children of the root (depth 1) are top-level.
+    queue: deque[tuple[str, int]] = deque((m, 1) for m in root.member_iris)
     visited: set[str] = {root.iri, root.requested_iri}
     fetches = 1
     truncated = False
@@ -305,7 +314,7 @@ async def discover_root(client: FdpClient, *, max_fetches: int = 50) -> RootDisc
         if fetches >= max_fetches:
             truncated = True
             break
-        iri = queue.popleft()
+        iri, depth = queue.popleft()
         if iri in visited:
             continue
         visited.add(iri)
@@ -315,8 +324,8 @@ async def discover_root(client: FdpClient, *, max_fetches: int = 50) -> RootDisc
             # A hidden, missing, or malformed member does not abort discovery.
             continue
         fetches += 1
-        _register_kind(kinds, resource, is_root=False)
+        _register_kind(kinds, resource, is_root=False, top_level=depth == 1)
         if resource.is_container:
-            queue.extend(m for m in resource.member_iris if m not in visited)
+            queue.extend((m, depth + 1) for m in resource.member_iris if m not in visited)
 
     return RootDiscovery(root=root, kinds=tuple(kinds.values()), truncated=truncated)

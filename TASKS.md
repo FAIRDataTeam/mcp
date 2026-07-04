@@ -104,7 +104,7 @@ References: ADR-0018 §4/§5.
 
 ## Phase 2 — Tools
 
-### 2.1 [ ] Read tools: `fdp_info`, `list_records`, `get_record`, `get_schema`
+### 2.1 [x] Read tools: `fdp_info`, `list_records`, `get_record`, `get_schema`
 
 - Thin handlers over Phase 1 client layer; results per the 1.1 contract
   (framed JSON-LD default, raw serialisation on request, IRIs always
