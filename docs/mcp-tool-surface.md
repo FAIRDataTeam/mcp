@@ -124,6 +124,9 @@ return a set of records use the **page envelope**:
 - `total` is the total across all pages **when the FDP reports it**; it is
   `null` when the backing surface does not expose a reliable total (a legitimate,
   common case — pagination MUST NOT depend on it).
+- `truncated` (optional, boolean) is present and `true` when the result was
+  produced by a bounded traversal that hit the bridge's crawl cap, so `total`
+  and the item set are **partial**. Absent means the enumeration was complete.
 
 See [§3.7](#37-pagination) for the request-side pagination parameters.
 
@@ -343,7 +346,8 @@ record), plus its container membership to enumerate the top-level kinds present.
   "endpoints": {
     "sparql": true,
     "search": false
-  }
+  },
+  "truncated": false
 }
 ```
 
@@ -354,6 +358,8 @@ record), plus its container membership to enumerate the top-level kinds present.
 - `endpoints` reports which optional capabilities this FDP supports, so an agent
   knows up front whether `search`/`sparql_query` will work (mirrors the
   `unsupported` probes). Keys are capability names; values are booleans.
+- `truncated` is `true` when kind discovery hit the bridge's crawl cap, so
+  `kinds` may be incomplete.
 
 **Errors:** `upstream_error`/`upstream_timeout` if the root is unreachable. The
 root is expected to be anonymously visible on a usable FDP; a `not_found` here
@@ -465,7 +471,11 @@ document(s), fetched by content negotiation.
 
 - `properties` is a flattened, agent-friendly digest of the shape's
   `sh:property` constraints (path, cardinality, datatype/nodeKind, description);
-  `shape` carries the complete shape for fidelity.
+  `shape` carries the complete shape for fidelity. The digest reflects the
+  shape's **`sh:node` closure**: a bridge SHOULD follow `sh:node` references
+  (resolving each composed shape on the FDP's own origin, bounded) so inherited
+  constraints appear, not just the primary shape's direct properties
+  (see `fdp-api-gaps.md` G-06). Properties are de-duplicated and path-ordered.
 
 **Degradation:** when the FDP publishes no resolvable shape for the kind →
 `unsupported` (capability `shapes`). `invalid_argument` for an unknown `kind`.
@@ -541,6 +551,13 @@ posture (a conformant FDP is expected to reject it too).
 **Backing surface:** the public SPARQL query endpoint. The FDP's own named-graph
 projection / access control decides which graphs are visible (anonymous sees only
 published, non-internal graphs); the bridge adds nothing.
+
+> **Default graph may be empty — query named graphs.** An FDP that stores one
+> named graph per record (e.g. FDPneo) projects records into named graphs, so the
+> **default graph can be empty**: a bare `SELECT ?s ?p ?o WHERE { ?s ?p ?o }`
+> then returns nothing even when the repository is full. Match named graphs
+> explicitly — `SELECT ?s ?p ?o WHERE { GRAPH ?g { ?s ?p ?o } }`. This is the
+> FDP's projection model, not a bridge behaviour (`fdp-api-gaps.md` G-07).
 
 **Result:** shaped by query form.
 

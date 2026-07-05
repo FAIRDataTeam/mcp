@@ -29,20 +29,28 @@ async def handle(client: FdpClient, *, limit: int = 50, offset: int = 0) -> dict
     """Enumerate DataService records as a page of Record objects with a service block."""
     limit = clamp_limit(limit)
     offset = max(0, offset)
-    services = await _collect_data_services(client, cap=MEMBER_CAP)
+    services, truncated = await _collect_data_services(client, cap=MEMBER_CAP)
     total = len(services)
     items = [_service_item(res) for res in services[offset : offset + limit]]
-    return page_envelope(items, limit=limit, offset=offset, total=total)
+    return page_envelope(items, limit=limit, offset=offset, total=total, truncated=truncated)
 
 
-async def _collect_data_services(client: FdpClient, *, cap: int) -> list[LdpResource]:
-    """Breadth-first walk from the root, collecting dcat:DataService records."""
+async def _collect_data_services(client: FdpClient, *, cap: int) -> tuple[list[LdpResource], bool]:
+    """Breadth-first walk from the root, collecting dcat:DataService records.
+
+    Returns the records plus whether the walk hit ``cap`` before the containment
+    tree was exhausted (so the count is partial).
+    """
     root = await fetch_resource(client, client.base_url)
     queue: deque[str] = deque(root.member_iris)
     visited: set[str] = {root.iri, root.requested_iri}
     found: list[LdpResource] = []
     fetches = 1
-    while queue and fetches < cap:
+    truncated = False
+    while queue:
+        if fetches >= cap:
+            truncated = True
+            break
         iri = queue.popleft()
         if iri in visited:
             continue
@@ -56,7 +64,7 @@ async def _collect_data_services(client: FdpClient, *, cap: int) -> list[LdpReso
             found.append(resource)
         if resource.is_container:
             queue.extend(m for m in resource.member_iris if m not in visited)
-    return found
+    return found, truncated
 
 
 def _service_item(resource: LdpResource) -> dict[str, Any]:

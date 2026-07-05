@@ -30,7 +30,7 @@ from fdp_mcp.fdp.errors import (
 from fdp_mcp.fdp.links import LinkSet
 
 if TYPE_CHECKING:
-    from fdp_mcp.fdp.ldp import LdpResource
+    from fdp_mcp.fdp.ldp import LdpResource, RootDiscovery
 
 # A content-negotiation preference an FDP can satisfy: Turtle first (the FDP
 # default and most compact), then JSON-LD, then RDF/XML and N-Triples.
@@ -84,6 +84,10 @@ class FdpClient:
         # discovery + endpoint resolution, ADR-0018 G-05); populated by
         # ``fdp.ldp.fetch_root`` so the root is fetched at most once per session.
         self.root_resource: LdpResource | None = None
+        # Per-session memo of root discovery (root + kinds). fdp_info, get_schema,
+        # and list_data_services all need it; caching avoids re-crawling the
+        # containment tree on every tool call within a session.
+        self.root_discovery: RootDiscovery | None = None
 
     @property
     def base_url(self) -> str:

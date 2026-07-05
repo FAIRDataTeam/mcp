@@ -134,7 +134,12 @@ def register_read_tools(server: FastMCP, settings: FdpMcpSettings) -> None:
         )
 
     async def sparql_query_tool(ctx: Context[Any, Any, Any], query: str) -> dict[str, Any]:
-        """Read-only SPARQL over the public endpoint (optional; update forms rejected)."""
+        """Read-only SPARQL over the public endpoint (optional; update forms rejected).
+
+        The FDP's default graph may be empty (records are projected into named
+        graphs), so match named graphs explicitly:
+        `SELECT ?s ?p ?o WHERE { GRAPH ?g { ?s ?p ?o } }`.
+        """
         return await _run(
             "sparql_query",
             settings,

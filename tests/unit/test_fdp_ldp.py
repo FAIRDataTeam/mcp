@@ -277,6 +277,19 @@ async def test_discover_root_enumerates_kinds_without_hardcoding() -> None:
     assert root_kind.type_iris == ("https://w3id.org/fdp/o#FAIRDataPoint",)
 
 
+async def test_discover_root_is_memoized_per_client() -> None:
+    with respx.mock(assert_all_called=False) as mock:
+        _mock_fdpneo(mock)
+        async with FdpClient(_settings()) as client:
+            first = await discover_root(client)
+            calls_after_first = len(mock.calls)
+            second = await discover_root(client)
+            calls_after_second = len(mock.calls)
+    # The second call is served from the per-session cache — no new fetches.
+    assert calls_after_second == calls_after_first
+    assert second is first
+
+
 async def test_discover_root_truncates_at_fetch_cap() -> None:
     with respx.mock(assert_all_called=False) as mock:
         _mock_fdpneo(mock)

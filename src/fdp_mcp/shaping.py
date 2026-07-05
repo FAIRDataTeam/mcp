@@ -209,9 +209,19 @@ def record_object(
 
 
 def page_envelope(
-    items: list[dict[str, Any]], *, limit: int, offset: int, total: int | None
+    items: list[dict[str, Any]],
+    *,
+    limit: int,
+    offset: int,
+    total: int | None,
+    truncated: bool = False,
 ) -> dict[str, Any]:
-    """Wrap a page of items in the contract page envelope (§3.3)."""
+    """Wrap a page of items in the contract page envelope (§3.3).
+
+    ``truncated`` (when the underlying enumeration hit the bridge's crawl cap and
+    the totals are therefore partial) is surfaced on the page so an agent can
+    tell an incomplete result from a complete one.
+    """
     count = len(items)
     # With a reliable total, "more" is exact; without one, a full page suggests more.
     has_more = offset + count < total if total is not None else count >= limit
@@ -224,6 +234,8 @@ def page_envelope(
     }
     if has_more:
         page["next_offset"] = offset + count
+    if truncated:
+        page["truncated"] = True
     return {"items": items, "page": page}
 
 
