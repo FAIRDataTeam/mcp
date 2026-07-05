@@ -152,18 +152,93 @@ References: vision doc §4/§5.
 - Coordinate `../server`: add the `fdp-mcp` service to the standard deploy
   profiles (server TASKS.md Phase 19) so FDPneo installs come up agent-ready.
 
-### 3.3 [~] v0.1.0 release
+### 3.3 [x] v0.1.0 release
 
-- Image published; README badges/instructions verified against a clean
-  machine; release notes; tag.
-- Gap report reviewed and triaged with the server team (link items to server
-  Phase 19 entries both ways).
-- Quality gate: ruff clean, pyright 0 errors, unit + integration +
-  conformance suites green.
+- Image published (GHCR, via CI on push to `main`); release notes + tag
+  (`v0.1.0` at `9c9000f`, GitHub Release published). README instructions
+  verified.
+- Gap report triaged with the server team (G-01…G-06 → server Phase 19 /
+  `server/docs/conformance/agent-ready.md`, linked both ways).
+- Quality gate green: ruff clean, pyright 0 errors, unit + conformance +
+  integration suites.
 
 ---
 
-**Out of scope (v1):** mutation tools; MCP resources/prompts; multi-FDP /
-Index-level operation (vision increment C — own ADR); capability-profile
-schema package (increment B); access-request drafting (increment D); MCP
-OAuth flow (open question 1).
+## Phase 4 — Post-v0.1 maintenance and enhancements
+
+Shipped so far: **v0.1.0** (initial read-only surface) and **v0.1.1**
+(root-metadata endpoint discovery + the DirectContainer fix, PR #1).
+
+### 4.1 [x] G-05 — consume advertised SPARQL/search endpoints (bridge side)
+
+- `fdp/discovery.py`: resolve each endpoint by *override → advertised on the FDP
+  origin → configured default*, reading `void:sparqlEndpoint` / DCAT
+  `dcat:DataService` from the root; off-origin advertisements refused; a resolved
+  endpoint that 404s still degrades to `unsupported`. Root fetched once per
+  session and shared with kind enumeration. Shipped v0.1.1; verified against a
+  live FDPneo. Server side shipped in FDPneo (see 4.7 — reconcile the version).
+
+### 4.2 [x] Fix: recognise `ldp:DirectContainer` as a container
+
+- FDPneo types containers `ldp:DirectContainer` (not the bare `ldp:Container`);
+  `is_container` / `is_ldp_container` now recognise the whole LDP container family.
+  Found by live validation — `list_data_services` and `discover_root` previously
+  failed to descend. Fixtures made `DirectContainer`-only to guard the regression.
+  Shipped v0.1.1.
+
+### 4.3 [ ] G-06 — compose the SHACL shape closure (bridge side)
+
+- `get_schema` follows `sh:node` references (on-origin, bounded, cycle-guarded)
+  so inherited/composed properties appear in the digest. No server change needed
+  (FDPneo already serves the closure via `?composed=true` / `/{prefix}/spec`).
+
+### 4.4 [ ] G-07 — the anonymous SPARQL default-graph trap
+
+- Anonymous SPARQL sees an **empty default graph**; data lives in named graphs
+  (one-graph-per-record, ADR-0007). A naive `SELECT ?s ?p ?o WHERE { ?s ?p ?o }`
+  returns nothing. Verified live: 0 triples in the default graph, 573 across 31
+  named graphs. Add gap entry **G-07**; document the `GRAPH ?g { … }` requirement
+  in the `sparql_query` contract section + quickstart; add a hint to the tool
+  description.
+
+### 4.5 [ ] Per-session discovery memoization + faster kind resolution
+
+- `fdp_info`, `get_schema`, and `list_data_services` each trigger a full
+  containment BFS. Cache `RootDiscovery` on the client (as `root_resource` is),
+  and short-circuit the BFS in `get_schema` once the requested kind is found.
+
+### 4.6 [ ] Surface BFS truncation honestly
+
+- `discover_root` computes `truncated`, but `fdp_info` / `list_data_services`
+  don't expose it — an agent can't tell a partial crawl from a complete one.
+
+### 4.7 [ ] Cross-repo coordination (server hand-off)
+
+- `server/docs/conformance/agent-ready.md` still marks **G-05 "bridge-pending"**
+  (now shipped in v0.1.1 → flip to resolved-both-sides) and cites **v0.5.0**
+  while our gap report cites **v0.6.0** — reconcile the version.
+- Add the `fdp-mcp` service to the standard FDPneo deploy profiles (the 3.2
+  hand-off; compose snippet is in `docs/agent-quickstart.md` §6 and README).
+
+### Later / strategic (own ADR where noted)
+
+- [ ] MCP **resources + prompts** — expose records as resources; a guided
+  "explore this FDP" prompt (vision open question 3; v1 is tools-only).
+- [ ] MCP **OAuth authorization** flow, beyond API-key pass-through (open
+  question 1), once client support stabilises.
+- [ ] **Increment B** — capability-profile schema package (`DataService` +
+  `dct:conformsTo` vocabulary); `list_data_services` is the seed.
+- [ ] **Increment C** — Index-level MCP: multi-FDP discovery + query
+  dispatch/aggregation over an FDP Index (own ADR).
+- [ ] **Increment D** — access-request drafting tools (against ODRL Offers).
+- [ ] Observability: OpenTelemetry spans on FDP calls; a readiness probe that
+  checks FDP reachability (distinct from `/healthz`).
+- [ ] Broaden `get_access_conditions` license-openness (SPDX-based map).
+
+---
+
+**Out of scope for v1 (tracked in Phase 4):** mutation tools (permanently out —
+read-only by design); MCP resources/prompts (4.x later); multi-FDP / Index-level
+operation (increment C — own ADR); capability-profile schema package
+(increment B); access-request drafting (increment D); MCP OAuth flow (open
+question 1).
