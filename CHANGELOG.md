@@ -5,7 +5,7 @@ All notable changes to `fdp-mcp` are documented here. The format follows
 [semantic versioning](https://semver.org/). The **tool-surface contract** is
 versioned independently — see `docs/mcp-tool-surface.md` §10.
 
-## [Unreleased]
+## [0.1.1] — 2026-07-05
 
 ### Added
 
