@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import httpx
 from pydantic import SecretStr
@@ -28,6 +28,9 @@ from fdp_mcp.fdp.errors import (
     FdpUpstreamError,
 )
 from fdp_mcp.fdp.links import LinkSet
+
+if TYPE_CHECKING:
+    from fdp_mcp.fdp.ldp import LdpResource
 
 # A content-negotiation preference an FDP can satisfy: Turtle first (the FDP
 # default and most compact), then JSON-LD, then RDF/XML and N-Triples.
@@ -77,6 +80,10 @@ class FdpClient:
             event_hooks={"request": [self._guard_egress]},
             headers=headers,
         )
+        # Per-session memo of the FDP root record (public metadata reused by
+        # discovery + endpoint resolution, ADR-0018 G-05); populated by
+        # ``fdp.ldp.fetch_root`` so the root is fetched at most once per session.
+        self.root_resource: LdpResource | None = None
 
     @property
     def base_url(self) -> str:

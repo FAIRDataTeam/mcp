@@ -1,6 +1,6 @@
 [project]
 name = "fdp-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP sidecar exposing the metadata of any spec-compliant FAIR Data Point to AI agents through a read-only tool surface."
 readme = "README.md"
 requires-python = ">=3.12"

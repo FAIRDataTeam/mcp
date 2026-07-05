@@ -22,6 +22,13 @@ BASE = "https://fdp.example.org"
 SPARQL = f"{BASE}/fdp-api/sparql"
 SEARCH = f"{BASE}/fdp-api/search"
 
+# A root that advertises no endpoints — endpoint resolution (G-05) falls back to
+# the configured default paths. The query/search tools fetch the root to resolve
+# their endpoint, so tests that drive them mock it.
+_PLAIN_ROOT = (
+    "@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<https://fdp.example.org> a ldp:Container ."
+)
+
 
 def _settings() -> FdpMcpSettings:
     return FdpMcpSettings(_env_file=None, FDP_BASE_URL=BASE)  # type: ignore[call-arg]
@@ -40,6 +47,7 @@ def _ttl(mock: respx.MockRouter, url: str, body: str, *, link: str | None = None
 async def test_sparql_select_shape() -> None:
     payload: dict[str, Any] = {"head": {"vars": ["s"]}, "results": {"bindings": []}}
     with respx.mock(assert_all_called=False) as mock:
+        _ttl(mock, f"{BASE}/", _PLAIN_ROOT)
         mock.post(SPARQL).mock(
             return_value=httpx.Response(
                 200,
@@ -57,6 +65,7 @@ async def test_sparql_select_shape() -> None:
 async def test_sparql_construct_returns_framed_graph() -> None:
     turtle = '<https://fdp.example.org/s> <http://purl.org/dc/terms/title> "T" .'
     with respx.mock(assert_all_called=False) as mock:
+        _ttl(mock, f"{BASE}/", _PLAIN_ROOT)
         mock.post(SPARQL).mock(
             return_value=httpx.Response(200, text=turtle, headers={"content-type": "text/turtle"})
         )
@@ -70,6 +79,7 @@ async def test_sparql_construct_returns_framed_graph() -> None:
 
 async def test_sparql_update_rejected_before_network() -> None:
     with respx.mock(assert_all_called=False) as mock:
+        _ttl(mock, f"{BASE}/", _PLAIN_ROOT)
         route = mock.post(SPARQL).mock(return_value=httpx.Response(200, text="{}"))
         async with FdpClient(_settings()) as client:
             with pytest.raises(ReadOnlyError):
@@ -79,6 +89,7 @@ async def test_sparql_update_rejected_before_network() -> None:
 
 async def test_sparql_absent_endpoint_unsupported() -> None:
     with respx.mock(assert_all_called=False) as mock:
+        _ttl(mock, f"{BASE}/", _PLAIN_ROOT)
         mock.post(SPARQL).mock(return_value=httpx.Response(404))
         async with FdpClient(_settings()) as client:
             with pytest.raises(FdpUnsupportedError) as exc_info:
@@ -105,6 +116,7 @@ async def test_search_shapes_hits_into_page() -> None:
         "total": 1,
     }
     with respx.mock(assert_all_called=False) as mock:
+        _ttl(mock, f"{BASE}/", _PLAIN_ROOT)
         mock.post(SEARCH).mock(
             return_value=httpx.Response(
                 200, text=json.dumps(payload), headers={"content-type": "application/json"}
@@ -121,6 +133,7 @@ async def test_search_shapes_hits_into_page() -> None:
 
 async def test_search_absent_unsupported() -> None:
     with respx.mock(assert_all_called=False) as mock:
+        _ttl(mock, f"{BASE}/", _PLAIN_ROOT)
         mock.post(SEARCH).mock(return_value=httpx.Response(404))
         async with FdpClient(_settings()) as client:
             with pytest.raises(FdpUnsupportedError) as exc_info:

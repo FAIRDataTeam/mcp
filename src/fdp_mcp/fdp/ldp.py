@@ -31,7 +31,7 @@ from fdp_mcp.fdp.errors import (
     FdpUpstreamError,
     raise_for_status,
 )
-from fdp_mcp.fdp.links import LinkSet
+from fdp_mcp.fdp.links import LDP_CONTAINER_TYPES, LinkSet
 from fdp_mcp.fdp.rdf import parse_graph
 
 LDP = Namespace("http://www.w3.org/ns/ldp#")
@@ -86,7 +86,7 @@ class LdpResource:
 
     @property
     def is_container(self) -> bool:
-        return self.links.is_ldp_container or f"{LDP}Container" in self.type_iris
+        return self.links.is_ldp_container or any(t in LDP_CONTAINER_TYPES for t in self.type_iris)
 
     @property
     def constrained_by(self) -> str | None:
@@ -148,6 +148,20 @@ async def fetch_resource(
         status=doc.status,
         page=_page_info(doc.headers),
     )
+
+
+async def fetch_root(client: FdpClient, *, accept: str = DEFAULT_RDF_ACCEPT) -> LdpResource:
+    """Fetch the FDP root record once per client (session), memoizing the result.
+
+    The root is public metadata reused by kind discovery and endpoint resolution
+    (ADR-0018 G-05); memoizing on the client avoids re-fetching it on every tool
+    call within a session.
+    """
+    if client.root_resource is not None:
+        return client.root_resource
+    root = await fetch_resource(client, client.base_url, accept=accept)
+    client.root_resource = root
+    return root
 
 
 def _resolve_subject(graph: Graph, requested: str, response_url: str) -> str:
@@ -300,7 +314,7 @@ async def discover_root(client: FdpClient, *, max_fetches: int = 50) -> RootDisc
     ``top_level``. ``max_fetches`` bounds the walk; ``truncated`` reports whether
     the cap was reached before the tree was exhausted.
     """
-    root = await fetch_resource(client, client.base_url)
+    root = await fetch_root(client)
     kinds: dict[tuple[str, ...], Kind] = {}
     _register_kind(kinds, root, is_root=True, top_level=False)
 

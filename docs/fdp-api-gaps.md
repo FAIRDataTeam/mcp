@@ -133,11 +133,17 @@ Phase 19). Link entries both ways when triaged.
   can discover rather than be configured.
 - **Severity:** interop / degrading. Surfaced while wiring the task-1.3 SPARQL/
   search clients (configurable endpoint paths).
+- **Status:** **resolved for FDPneo** (server-side + bridge-side both shipped).
 - **Triage:** [server task 19.2](../../server/TASKS.md) — **fixed server-side
-  (FDPneo v0.5.0)**: the root record now advertises `void:sparqlEndpoint` and DCAT
-  `dcat:DataService` (`dcat:endpointURL`) for SPARQL/search. **Bridge follow-up:**
-  add a discovery pass that reads these from the root instead of relying on
-  configured paths. See
+  (FDPneo v0.6.0)**: the root record now advertises `void:sparqlEndpoint` and DCAT
+  `dcat:DataService` (`dcat:endpointURL`) for SPARQL/search. **Bridge follow-up —
+  done:** `fdp_mcp.fdp.discovery` reads those from the root and resolves each
+  endpoint by *override → advertised (on the FDP origin) → configured default*;
+  off-origin advertisements are refused (strict egress) and a resolved endpoint
+  that 404s still degrades the tool to `unsupported` (API honesty preserved). The
+  root is fetched once per session and shared with kind enumeration. Verified
+  against a live FDPneo (`tests/integration/test_live_fdp.py`) plus
+  `tests/unit/test_discovery.py`. See
   [agent-ready conformance](../../server/docs/conformance/agent-ready.md#gap-triage-adr-0018-4).
 
 ## G-06 — SHACL shape closure (`sh:node`) is endpoint-specific

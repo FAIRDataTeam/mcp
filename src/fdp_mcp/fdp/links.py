@@ -24,6 +24,18 @@ REL_COLLECTION = "collection"
 
 _LDP_NS = "http://www.w3.org/ns/ldp#"
 
+# Every LDP container type is a container. FDPneo types its containers
+# `ldp:DirectContainer` (not the bare `ldp:Container`), so checking only for
+# `ldp:Container` would miss them — recognise the whole family.
+LDP_CONTAINER_TYPES = frozenset(
+    {
+        f"{_LDP_NS}Container",
+        f"{_LDP_NS}BasicContainer",
+        f"{_LDP_NS}DirectContainer",
+        f"{_LDP_NS}IndirectContainer",
+    }
+)
+
 
 @dataclass(frozen=True)
 class Link:
@@ -166,4 +178,4 @@ class LinkSet:
 
     @property
     def is_ldp_container(self) -> bool:
-        return f"{_LDP_NS}Container" in self.targets(REL_TYPE)
+        return any(t in LDP_CONTAINER_TYPES for t in self.targets(REL_TYPE))

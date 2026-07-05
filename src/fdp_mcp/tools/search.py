@@ -9,8 +9,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from rdflib import Graph
+
 from fdp_mcp.config import FdpMcpSettings
 from fdp_mcp.fdp.client import FdpClient
+from fdp_mcp.fdp.discovery import resolve_search_endpoint
 from fdp_mcp.fdp.ldp import discover_root
 from fdp_mcp.fdp.search import run_search
 from fdp_mcp.shaping import page_envelope, search_hit_object
@@ -33,16 +36,23 @@ async def handle(
 
     types = list(filters.get("types", []))
     # A `kind` slug is resolved to its type IRIs via discovery (optional facet).
+    # Reuse that root fetch for endpoint discovery (G-05) when it happens.
     kind = filters.get("kind")
+    root_graph: Graph | None = None
+    root_iri: str | None = None
     if kind:
         discovery = await discover_root(client)
+        root_graph, root_iri = discovery.root.graph, discovery.root.iri
         match = next((k for k in discovery.kinds if k.slug == kind), None)
         if match is not None:
             types.extend(match.type_iris)
 
+    endpoint = await resolve_search_endpoint(
+        client, settings, root_graph=root_graph, root_iri=root_iri
+    )
     result = await run_search(
         client,
-        settings.fdp_search_endpoint,
+        endpoint,
         query=query,
         types=types or None,
         license=filters.get("license"),

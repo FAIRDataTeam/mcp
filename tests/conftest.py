@@ -19,15 +19,17 @@ from fdp_mcp.config import FdpMcpSettings
 
 BASE = "https://fdp.example.org"
 
+# Faithful to real FDPneo: containers are typed ldp:DirectContainer only (no bare
+# ldp:Container), in both the Link header and the graph. This exercises the
+# container-type recognition that a DataService BFS depends on.
 _LDP_CONTAINER_LINK = (
     '<http://www.w3.org/ns/ldp#Resource>; rel="type", '
-    '<http://www.w3.org/ns/ldp#Container>; rel="type", '
     '<http://www.w3.org/ns/ldp#DirectContainer>; rel="type"'
 )
 _ROOT_LINK = f'{_LDP_CONTAINER_LINK}, <{BASE}>; rel="cite-as"'
 _DATASET_LINK = (
     '<http://www.w3.org/ns/ldp#Resource>; rel="type", '
-    '<http://www.w3.org/ns/ldp#Container>; rel="type", '
+    '<http://www.w3.org/ns/ldp#DirectContainer>; rel="type", '
     f'<{BASE}/schema/dataset>; rel="http://www.w3.org/ns/ldp#constrainedBy", '
     '<https://doi.org/10.1/ds1>; rel="cite-as", '
     '<https://creativecommons.org/licenses/by/4.0/>; rel="license"'
@@ -37,7 +39,7 @@ _ROOT_TTL = f"""
 @prefix ldp: <http://www.w3.org/ns/ldp#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix fdp: <https://w3id.org/fdp/o#> .
-<{BASE}> a fdp:FAIRDataPoint, ldp:Container, ldp:DirectContainer ;
+<{BASE}> a fdp:FAIRDataPoint, ldp:DirectContainer ;
     dcterms:title "Example FDP" ;
     dcterms:publisher <https://example.org/org/1> ;
     ldp:contains <{BASE}/catalog/1> .
@@ -46,7 +48,7 @@ _CATALOG_TTL = f"""
 @prefix ldp: <http://www.w3.org/ns/ldp#> .
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-<{BASE}/catalog/1> a dcat:Catalog, ldp:Container, ldp:DirectContainer ;
+<{BASE}/catalog/1> a dcat:Catalog, ldp:DirectContainer ;
     dcterms:title "Catalog One" ;
     ldp:contains <{BASE}/dataset/1>, <{BASE}/service/1> .
 """
@@ -55,7 +57,7 @@ _DATASET_TTL = f"""
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix vcard: <http://www.w3.org/2006/vcard/ns#> .
-<{BASE}/dataset/1> a dcat:Dataset, ldp:Container ;
+<{BASE}/dataset/1> a dcat:Dataset, ldp:DirectContainer ;
     dcterms:title "Dataset One" ;
     dcterms:isPartOf <{BASE}/catalog/1> ;
     dcterms:license <https://creativecommons.org/licenses/by/4.0/> ;
