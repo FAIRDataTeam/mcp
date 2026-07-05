@@ -150,6 +150,20 @@ async def fetch_resource(
     )
 
 
+async def fetch_root(client: FdpClient, *, accept: str = DEFAULT_RDF_ACCEPT) -> LdpResource:
+    """Fetch the FDP root record once per client (session), memoizing the result.
+
+    The root is public metadata reused by kind discovery and endpoint resolution
+    (ADR-0018 G-05); memoizing on the client avoids re-fetching it on every tool
+    call within a session.
+    """
+    if client.root_resource is not None:
+        return client.root_resource
+    root = await fetch_resource(client, client.base_url, accept=accept)
+    client.root_resource = root
+    return root
+
+
 def _resolve_subject(graph: Graph, requested: str, response_url: str) -> str:
     """Pick the record's primary subject IRI.
 
@@ -300,7 +314,7 @@ async def discover_root(client: FdpClient, *, max_fetches: int = 50) -> RootDisc
     ``top_level``. ``max_fetches`` bounds the walk; ``truncated`` reports whether
     the cap was reached before the tree was exhausted.
     """
-    root = await fetch_resource(client, client.base_url)
+    root = await fetch_root(client)
     kinds: dict[tuple[str, ...], Kind] = {}
     _register_kind(kinds, root, is_root=True, top_level=False)
 

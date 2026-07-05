@@ -29,6 +29,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 Transport = Literal["streamable-http", "stdio"]
 LogLevel = Literal["debug", "info", "warning", "error", "critical"]
 
+# Built-in default endpoint paths (match FDPneo). Kept as module constants so the
+# resolver can tell an operator override from the default: when a path is still
+# the default, the bridge prefers an endpoint the FDP *advertises* in its root
+# metadata (ADR-0018 G-05); an explicit override always wins.
+_DEFAULT_SPARQL_PATH = "/fdp-api/sparql"
+_DEFAULT_SEARCH_PATH = "/fdp-api/search"
+
 
 class FdpMcpSettings(BaseSettings):
     """Top-level settings for the ``fdp-mcp`` bridge.
@@ -89,10 +96,11 @@ class FdpMcpSettings(BaseSettings):
 
     # Endpoint paths for the optional SPARQL and search surfaces. The FDP spec
     # does not standardise these, so they are configurable; the defaults match
-    # FDPneo. Operators of other FDPs override them (or the tools degrade to
-    # `unsupported` when the path 404s). See fdp-api-gaps.md G-05.
-    fdp_sparql_path: str = "/fdp-api/sparql"
-    fdp_search_path: str = "/fdp-api/search"
+    # FDPneo. Preferred discovery (ADR-0018 G-05) is from the FDP's advertised
+    # root metadata; these paths are the fallback when the root advertises
+    # nothing, and an explicit override here takes precedence over discovery.
+    fdp_sparql_path: str = _DEFAULT_SPARQL_PATH
+    fdp_search_path: str = _DEFAULT_SEARCH_PATH
 
     @property
     def fdp_origin(self) -> str:
@@ -120,6 +128,20 @@ class FdpMcpSettings(BaseSettings):
     def fdp_search_endpoint(self) -> str:
         """Absolute URL of the search endpoint (``fdp_base_url`` + configured path)."""
         return self._endpoint(self.fdp_search_path)
+
+    @property
+    def sparql_path_is_default(self) -> bool:
+        """True when the SPARQL path is the built-in default (not operator-overridden).
+
+        When default, the resolver prefers an endpoint advertised in the FDP root
+        (G-05); an override makes the configured path authoritative.
+        """
+        return self.fdp_sparql_path == _DEFAULT_SPARQL_PATH
+
+    @property
+    def search_path_is_default(self) -> bool:
+        """True when the search path is the built-in default (not operator-overridden)."""
+        return self.fdp_search_path == _DEFAULT_SEARCH_PATH
 
 
 @lru_cache(maxsize=1)
