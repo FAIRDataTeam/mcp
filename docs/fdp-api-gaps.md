@@ -44,7 +44,9 @@ Phase 19). Link entries both ways when triaged.
   The required/optional split in the tool surface already treats `search` as
   optional in anticipation of this.
 - **Severity:** interop / degrading (by design — `search` is optional).
-- **Triage:** untriaged.
+- **Triage:** [server Phase 19](../../server/TASKS.md) — **won't-fix** (interop;
+  search is optional by design; FDPneo exposes it). See
+  [agent-ready conformance](../../server/docs/conformance/agent-ready.md#gap-triage-adr-0018-4).
 
 ## G-02 — Shape discovery is under-specified across implementations
 
@@ -64,7 +66,10 @@ Phase 19). Link entries both ways when triaged.
   FDP-spec level (e.g. a required `constrainedBy` on containers, or a standard
   shapes-listing endpoint).
 - **Severity:** interop / degrading.
-- **Triage:** untriaged.
+- **Triage:** [server Phase 19](../../server/TASKS.md) — **won't-fix on server**
+  (spec-level; FDPneo already offers `/fdp-api/schemas`, `?composed=true`,
+  `/{prefix}/spec`, and per-record `ldp:constrainedBy`). See
+  [agent-ready conformance](../../server/docs/conformance/agent-ready.md#gap-triage-adr-0018-4).
 
 ## G-03 — SPARQL endpoint presence/enablement is not guaranteed
 
@@ -79,7 +84,10 @@ Phase 19). Link entries both ways when triaged.
 - **Suggested resolution:** capability-probe on first use and degrade; longer
   term, a spec statement on SPARQL endpoint expectations.
 - **Severity:** degrading.
-- **Triage:** untriaged.
+- **Triage:** [server Phase 19](../../server/TASKS.md) — **won't-fix** (the bridge
+  probes and degrades; FDPneo exposes `/fdp-api/sparql`; enablement is a
+  per-deployment/spec concern). See
+  [agent-ready conformance](../../server/docs/conformance/agent-ready.md#gap-triage-adr-0018-4).
 
 ## G-04 — FAIR Signposting relations absent on the Java reference implementation
 
@@ -101,7 +109,10 @@ Phase 19). Link entries both ways when triaged.
   expectation, or specify graph-level equivalents the bridge can rely on.
 - **Severity:** interop / degrading. Confirmed by the task-1.2 client-layer
   fixtures (`tests/unit/test_fdp_ldp.py::test_java_jsonld_record_parses_with_sparse_links`).
-- **Triage:** untriaged.
+- **Triage:** [server Phase 19](../../server/TASKS.md) — **done for FDPneo**
+  (FAIR Signposting Level 1 on every `GET`/`HEAD`, ADR-0017); remaining gap is the
+  Java RI. See
+  [agent-ready conformance](../../server/docs/conformance/agent-ready.md#gap-triage-adr-0018-4).
 
 ## G-05 — SPARQL/search endpoint locations are not discoverable
 
@@ -122,7 +133,12 @@ Phase 19). Link entries both ways when triaged.
   can discover rather than be configured.
 - **Severity:** interop / degrading. Surfaced while wiring the task-1.3 SPARQL/
   search clients (configurable endpoint paths).
-- **Triage:** untriaged.
+- **Triage:** [server task 19.2](../../server/TASKS.md) — **fixed server-side
+  (FDPneo v0.5.0)**: the root record now advertises `void:sparqlEndpoint` and DCAT
+  `dcat:DataService` (`dcat:endpointURL`) for SPARQL/search. **Bridge follow-up:**
+  add a discovery pass that reads these from the root instead of relying on
+  configured paths. See
+  [agent-ready conformance](../../server/docs/conformance/agent-ready.md#gap-triage-adr-0018-4).
 
 ## G-06 — SHACL shape closure (`sh:node`) is endpoint-specific
 
@@ -141,7 +157,11 @@ Phase 19). Link entries both ways when triaged.
 - **Suggested resolution:** specify that a `constrainedBy` shape is served as its
   full closure, or add a standard closure request parameter.
 - **Severity:** degrading. Surfaced while implementing the task-1.3 shape digest.
-- **Triage:** untriaged.
+- **Triage:** [server Phase 19](../../server/TASKS.md) — **deferred** (FDPneo
+  already serves the merged closure via `?composed=true` / `/{prefix}/spec`; a
+  cross-implementation "serve `constrainedBy` as its closure" or a standard closure
+  request is an FDP-spec item). See
+  [agent-ready conformance](../../server/docs/conformance/agent-ready.md#gap-triage-adr-0018-4).
 
 ---
 
