@@ -22,7 +22,7 @@ BASE = "https://fdp.example.org"
 _LDP_LINK = (
     '<http://www.w3.org/ns/ldp#Resource>; rel="type", '
     '<http://www.w3.org/ns/ldp#RDFSource>; rel="type", '
-    '<http://www.w3.org/ns/ldp#Container>; rel="type", '
+    # FDPneo types containers ldp:DirectContainer only (not the bare ldp:Container).
     '<http://www.w3.org/ns/ldp#DirectContainer>; rel="type"'
 )
 
@@ -30,7 +30,7 @@ ROOT_TTL = """
 @prefix ldp: <http://www.w3.org/ns/ldp#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix fdp: <https://w3id.org/fdp/o#> .
-<https://fdp.example.org> a fdp:FAIRDataPoint, ldp:Container, ldp:DirectContainer ;
+<https://fdp.example.org> a fdp:FAIRDataPoint, ldp:DirectContainer ;
     dcterms:title "Example FDP" ;
     ldp:contains <https://fdp.example.org/catalog/1> .
 """
@@ -45,7 +45,7 @@ CATALOG_TTL = """
 @prefix ldp: <http://www.w3.org/ns/ldp#> .
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-<https://fdp.example.org/catalog/1> a dcat:Catalog, ldp:Container, ldp:DirectContainer ;
+<https://fdp.example.org/catalog/1> a dcat:Catalog, ldp:DirectContainer ;
     dcterms:title "Catalog One" ;
     ldp:contains <https://fdp.example.org/dataset/1> .
 """
@@ -54,7 +54,7 @@ DATASET_TTL = """
 @prefix ldp: <http://www.w3.org/ns/ldp#> .
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-<https://fdp.example.org/dataset/1> a dcat:Dataset, ldp:Container ;
+<https://fdp.example.org/dataset/1> a dcat:Dataset, ldp:DirectContainer ;
     dcterms:title "Dataset One" ;
     dcterms:isPartOf <https://fdp.example.org/catalog/1> ;
     ldp:contains <https://fdp.example.org/distribution/1>,

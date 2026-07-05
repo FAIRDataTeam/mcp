@@ -31,7 +31,7 @@ from fdp_mcp.fdp.errors import (
     FdpUpstreamError,
     raise_for_status,
 )
-from fdp_mcp.fdp.links import LinkSet
+from fdp_mcp.fdp.links import LDP_CONTAINER_TYPES, LinkSet
 from fdp_mcp.fdp.rdf import parse_graph
 
 LDP = Namespace("http://www.w3.org/ns/ldp#")
@@ -86,7 +86,7 @@ class LdpResource:
 
     @property
     def is_container(self) -> bool:
-        return self.links.is_ldp_container or f"{LDP}Container" in self.type_iris
+        return self.links.is_ldp_container or any(t in LDP_CONTAINER_TYPES for t in self.type_iris)
 
     @property
     def constrained_by(self) -> str | None:

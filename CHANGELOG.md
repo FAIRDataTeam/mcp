@@ -22,6 +22,18 @@ versioned independently — see `docs/mcp-tool-surface.md` §10.
   shared by discovery and kind enumeration. Closes the bridge side of gap G-05
   (server side shipped in FDPneo v0.6.0).
 
+### Fixed
+
+- **Container recognition for `ldp:DirectContainer`.** `LdpResource.is_container`
+  (and `LinkSet.is_ldp_container`) recognised only the bare `ldp:Container`, but
+  FDPneo types its containers `ldp:DirectContainer`. The containment walks in
+  `list_data_services` and `discover_root` therefore never descended past the
+  top-level containers — so `list_data_services` returned empty and `fdp_info`
+  under-reported kinds against a real FDP. Now the whole LDP container family
+  (`Container` / `BasicContainer` / `DirectContainer` / `IndirectContainer`) is
+  recognised. Caught by live validation against FDPneo v0.6.0; the mocked-FDP
+  fixtures are now `DirectContainer`-only so the suite guards against regression.
+
 ## [0.1.0] — 2026-07-04
 
 First release: a standalone MCP sidecar that exposes the metadata of any

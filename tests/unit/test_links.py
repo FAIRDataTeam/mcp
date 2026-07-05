@@ -71,6 +71,15 @@ def test_type_iris_split_ldp_vs_rdf() -> None:
     assert ls.is_ldp_container is False
 
 
+def test_direct_container_counts_as_container() -> None:
+    # FDPneo types containers ldp:DirectContainer only, not the bare ldp:Container.
+    header = (
+        '<http://www.w3.org/ns/ldp#Resource>; rel="type", '
+        '<http://www.w3.org/ns/ldp#DirectContainer>; rel="type"'
+    )
+    assert LinkSet.from_header(header).is_ldp_container is True
+
+
 def test_empty_and_none() -> None:
     assert parse_link_header(None) == []
     assert parse_link_header("") == []
