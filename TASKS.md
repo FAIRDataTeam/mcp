@@ -166,8 +166,9 @@ References: vision doc §4/§5.
 
 ## Phase 4 — Post-v0.1 maintenance and enhancements
 
-Shipped so far: **v0.1.0** (initial read-only surface) and **v0.1.1**
-(root-metadata endpoint discovery + the DirectContainer fix, PR #1).
+Shipped so far: **v0.1.0** (initial read-only surface); **v0.1.1** (root-metadata
+endpoint discovery + the DirectContainer fix, PR #1); **v0.2.0** (SHACL shape
+closure, discovery memoization, truncation flags, G-07 docs, PR #2).
 
 ### 4.1 [x] G-05 — consume advertised SPARQL/search endpoints (bridge side)
 
@@ -186,13 +187,13 @@ Shipped so far: **v0.1.0** (initial read-only surface) and **v0.1.1**
   failed to descend. Fixtures made `DirectContainer`-only to guard the regression.
   Shipped v0.1.1.
 
-### 4.3 [ ] G-06 — compose the SHACL shape closure (bridge side)
+### 4.3 [x] G-06 — compose the SHACL shape closure (bridge side)
 
 - `get_schema` follows `sh:node` references (on-origin, bounded, cycle-guarded)
   so inherited/composed properties appear in the digest. No server change needed
   (FDPneo already serves the closure via `?composed=true` / `/{prefix}/spec`).
 
-### 4.4 [ ] G-07 — the anonymous SPARQL default-graph trap
+### 4.4 [x] G-07 — the anonymous SPARQL default-graph trap
 
 - Anonymous SPARQL sees an **empty default graph**; data lives in named graphs
   (one-graph-per-record, ADR-0007). A naive `SELECT ?s ?p ?o WHERE { ?s ?p ?o }`
@@ -201,13 +202,13 @@ Shipped so far: **v0.1.0** (initial read-only surface) and **v0.1.1**
   in the `sparql_query` contract section + quickstart; add a hint to the tool
   description.
 
-### 4.5 [ ] Per-session discovery memoization + faster kind resolution
+### 4.5 [x] Per-session discovery memoization + faster kind resolution
 
 - `fdp_info`, `get_schema`, and `list_data_services` each trigger a full
   containment BFS. Cache `RootDiscovery` on the client (as `root_resource` is),
   and short-circuit the BFS in `get_schema` once the requested kind is found.
 
-### 4.6 [ ] Surface BFS truncation honestly
+### 4.6 [x] Surface BFS truncation honestly
 
 - `discover_root` computes `truncated`, but `fdp_info` / `list_data_services`
   don't expose it — an agent can't tell a partial crawl from a complete one.
