@@ -313,7 +313,12 @@ async def discover_root(client: FdpClient, *, max_fetches: int = 50) -> RootDisc
     containers). Kinds whose records sit directly under the root are marked
     ``top_level``. ``max_fetches`` bounds the walk; ``truncated`` reports whether
     the cap was reached before the tree was exhausted.
+
+    The result is memoized on the client for the session, so ``fdp_info``,
+    ``get_schema``, and ``list_data_services`` share a single crawl.
     """
+    if client.root_discovery is not None:
+        return client.root_discovery
     root = await fetch_root(client)
     kinds: dict[tuple[str, ...], Kind] = {}
     _register_kind(kinds, root, is_root=True, top_level=False)
@@ -342,4 +347,6 @@ async def discover_root(client: FdpClient, *, max_fetches: int = 50) -> RootDisc
         if resource.is_container:
             queue.extend((m, depth + 1) for m in resource.member_iris if m not in visited)
 
-    return RootDiscovery(root=root, kinds=tuple(kinds.values()), truncated=truncated)
+    discovery = RootDiscovery(root=root, kinds=tuple(kinds.values()), truncated=truncated)
+    client.root_discovery = discovery
+    return discovery

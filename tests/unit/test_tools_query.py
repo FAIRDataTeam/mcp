@@ -17,6 +17,7 @@ from fdp_mcp.config import FdpMcpSettings
 from fdp_mcp.fdp.client import FdpClient
 from fdp_mcp.fdp.errors import FdpUnsupportedError, ReadOnlyError
 from fdp_mcp.tools import get_access_conditions, list_data_services, search, sparql_query
+from fdp_mcp.tools.list_data_services import _collect_data_services
 
 BASE = "https://fdp.example.org"
 SPARQL = f"{BASE}/fdp-api/sparql"
@@ -227,6 +228,16 @@ async def test_list_data_services_enumerates_with_service_block() -> None:
     assert item["service"]["endpoint_url"] == "https://beacon.example.org/api"
     assert item["service"]["serves_datasets"] == ["https://fdp.example.org/dataset/1"]
     assert item["service"]["conforms_to"] == ["http://en.wikipedia.org/wiki/Beacon_v2"]
+
+
+async def test_list_data_services_truncation_flag() -> None:
+    with respx.mock(assert_all_called=False) as mock:
+        _ttl(mock, f"{BASE}/", _ROOT)
+        _ttl(mock, f"{BASE}/catalog/1", _CATALOG)
+        _ttl(mock, f"{BASE}/service/1", _SERVICE)
+        async with FdpClient(_settings()) as client:
+            _, truncated = await _collect_data_services(client, cap=1)
+    assert truncated is True
 
 
 async def test_list_data_services_empty_is_not_unsupported() -> None:

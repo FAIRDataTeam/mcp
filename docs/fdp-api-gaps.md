@@ -163,15 +163,42 @@ Phase 19). Link entries both ways when triaged.
 - **Suggested resolution:** specify that a `constrainedBy` shape is served as its
   full closure, or add a standard closure request parameter.
 - **Severity:** degrading. Surfaced while implementing the task-1.3 shape digest.
-- **Triage:** [server Phase 19](../../server/TASKS.md) — **deferred** (FDPneo
-  already serves the merged closure via `?composed=true` / `/{prefix}/spec`; a
-  cross-implementation "serve `constrainedBy` as its closure" or a standard closure
-  request is an FDP-spec item). See
+- **Status:** **resolved bridge-side (v0.2.0)** — no server change was required.
+- **Triage:** [server Phase 19](../../server/TASKS.md) — **deferred on server**
+  (FDPneo already serves the merged closure via `?composed=true` / `/{prefix}/spec`).
+  **Bridge follow-up — done:** `get_schema` now follows `sh:node` references,
+  fetching each composed shape on the FDP origin (bounded, cycle-guarded) and
+  aggregating their `sh:property` into the digest, so inherited constraints appear
+  (verified against a live FDPneo catalog shape: ~7 direct → full composed set).
+  A cross-implementation "serve `constrainedBy` as its closure" remains an
+  FDP-spec item. See
   [agent-ready conformance](../../server/docs/conformance/agent-ready.md#gap-triage-adr-0018-4).
+
+## G-07 — anonymous SPARQL default graph is empty (data lives in named graphs)
+
+- **Capability:** `sparql`
+- **Blocks / degrades:** [`sparql_query`](mcp-tool-surface.md#56-sparql_query) —
+  a bare `SELECT ?s ?p ?o WHERE { ?s ?p ?o }` returns **no rows** even against a
+  full repository, because the query hits the (empty) default graph.
+- **Implementations affected:** any FDP that stores one named graph per record
+  (FDPneo, ADR-0007). Verified live against FDPneo v0.6.0: the default graph has
+  **0** triples while **573** live across **31** named graphs.
+- **Public-surface status:** correct and intended — the named-graph projection is
+  the access-control boundary. But an agent (or LLM) writing the obvious
+  default-graph query silently gets nothing; the trap is undocumented.
+- **Suggested resolution:** document the `GRAPH ?g { … }` requirement (done: the
+  tool-surface spec §5.6, the `sparql_query` tool description, and the
+  quickstart). Longer term, an FDP-spec note on default-vs-named-graph
+  expectations, or an optional default-graph union.
+- **Severity:** degrading (usability). The bridge faithfully relays the FDP's
+  (empty) result — this is guidance, not a bridge bug.
+- **Triage:** untriaged (bridge documents the workaround; a default-graph-union
+  option is an FDP-spec/deployment concern).
 
 ---
 
 *Entries G-01…G-03 are seeded from the task-1.1 surface survey; G-04 is the first
 fixture-confirmed divergence (task 1.2); G-05 and G-06 were surfaced while wiring
-the task-1.3 SPARQL/search/shapes clients. Each entry is tied to the tool it
+the task-1.3 SPARQL/search/shapes clients (both now resolved bridge-side); G-07
+was found by live validation against FDPneo. Each entry is tied to the tool it
 blocks or degrades; the server repo triages them into Phase 19.*

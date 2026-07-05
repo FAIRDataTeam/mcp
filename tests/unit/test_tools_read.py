@@ -136,6 +136,7 @@ async def test_fdp_info_describes_repository_kinds_and_endpoints() -> None:
     catalog = next(k for k in result["kinds"] if k["slug"] == "catalog")
     assert catalog["top_level"] is True
     assert result["endpoints"] == {"sparql": True, "search": True}
+    assert result["truncated"] is False  # small tree, fully enumerated
 
 
 async def test_fdp_info_reports_absent_endpoints() -> None:

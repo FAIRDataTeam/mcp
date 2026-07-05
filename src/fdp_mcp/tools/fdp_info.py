@@ -55,6 +55,8 @@ async def handle(
         "repository": record_object(discovery.root, kind=root_kind, fmt=fmt),
         "kinds": kinds,
         "endpoints": endpoints,
+        # True when kind discovery hit the crawl cap, so `kinds` may be partial.
+        "truncated": discovery.truncated,
     }
 
 

@@ -136,6 +136,13 @@ def test_page_envelope_last_page_has_no_next() -> None:
     assert "next_offset" not in env["page"]
 
 
+def test_page_envelope_truncated_flag() -> None:
+    truncated = page_envelope([], limit=50, offset=0, total=0, truncated=True)
+    assert truncated["page"]["truncated"] is True
+    # Omitted (not False) when the enumeration was complete.
+    assert "truncated" not in page_envelope([], limit=50, offset=0, total=0)["page"]
+
+
 def test_page_envelope_unknown_total_uses_full_page_heuristic() -> None:
     assert page_envelope([{}, {}], limit=2, offset=0, total=None)["page"]["has_more"] is True
     assert page_envelope([{}], limit=2, offset=0, total=None)["page"]["has_more"] is False

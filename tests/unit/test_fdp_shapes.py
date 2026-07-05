@@ -36,8 +36,50 @@ RECORD_LINK = (
 )
 
 
+# A catalog shape that composes the dataset shape via sh:node (G-06), plus a
+# base shape referenced off-origin to prove off-origin refs are skipped.
+CATALOG_SHAPE = f"{BASE}/schema/catalog"
+CATALOG_SHAPE_TTL = f"""
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+<{CATALOG_SHAPE}> a sh:NodeShape ;
+    sh:targetClass dcat:Catalog ;
+    sh:node <{SHAPE}> ;
+    sh:node <https://external.example.net/schema/base> ;
+    sh:property [ sh:path dcterms:hasPart ; sh:nodeKind sh:IRI ] .
+"""
+
+
 def _settings() -> FdpMcpSettings:
     return FdpMcpSettings(_env_file=None, FDP_BASE_URL=BASE)  # type: ignore[call-arg]
+
+
+async def test_fetch_shape_follows_sh_node_closure() -> None:
+    # The catalog shape composes the dataset shape via sh:node; the digest must
+    # include the dataset shape's properties (G-06). The off-origin sh:node ref
+    # is skipped without error (strict egress).
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(CATALOG_SHAPE).mock(
+            return_value=httpx.Response(
+                200, text=CATALOG_SHAPE_TTL, headers={"content-type": "text/turtle"}
+            )
+        )
+        mock.get(SHAPE).mock(
+            return_value=httpx.Response(
+                200, text=SHAPE_TTL, headers={"content-type": "text/turtle"}
+            )
+        )
+        async with FdpClient(_settings()) as client:
+            shape = await fetch_shape(client, CATALOG_SHAPE)
+
+    paths = {p.path for p in shape.properties}
+    # targetClass is the primary shape's only (catalog, not the composed dataset).
+    assert shape.target_class_iris == ["http://www.w3.org/ns/dcat#Catalog"]
+    # Direct property + composed (via sh:node) dataset properties are aggregated.
+    assert "http://purl.org/dc/terms/hasPart" in paths
+    assert "http://purl.org/dc/terms/title" in paths
+    assert "http://purl.org/dc/terms/publisher" in paths
 
 
 async def test_fetch_shape_digests_properties() -> None:

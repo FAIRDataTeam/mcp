@@ -234,5 +234,9 @@ Operators of a non-FDPneo FDP run the same image pointed at their instance — o
   from `FDP_BASE_URL`.
 - **`upstream_timeout` / `too_large`.** The FDP was slow or the response exceeded
   the size cap; tune `FDP_MCP_FDP_TIMEOUT_SECONDS` / `FDP_MCP_FDP_MAX_RESPONSE_BYTES`.
+- **`sparql_query` returns no rows for an obviously non-empty repository.** The
+  FDP projects records into **named graphs**, so the default graph is often
+  empty. Match named graphs explicitly:
+  `SELECT ?s ?p ?o WHERE { GRAPH ?g { ?s ?p ?o } }` (gap G-07).
 - **Health check:** `curl http://localhost:8080/healthz` should return
   `{"status":"ok"}`.

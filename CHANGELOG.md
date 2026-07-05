@@ -5,6 +5,33 @@ All notable changes to `fdp-mcp` are documented here. The format follows
 [semantic versioning](https://semver.org/). The **tool-surface contract** is
 versioned independently — see `docs/mcp-tool-surface.md` §10.
 
+## [0.2.0] — 2026-07-05
+
+### Added
+
+- **SHACL shape closure in `get_schema` (G-06).** The digest now follows
+  `sh:node` references — fetching each composed shape on the FDP origin (bounded,
+  cycle-guarded) and aggregating their `sh:property` — so inherited constraints
+  appear, not just the primary shape's direct properties. Verified against a
+  live FDPneo catalog shape (~7 direct → 48 composed). Closes the bridge side of
+  gap G-06 (no server change needed).
+- **Per-session discovery memoization.** Root discovery (root record + kinds) is
+  cached on the client, so `fdp_info`, `get_schema`, and `list_data_services`
+  share a single containment crawl per session instead of re-crawling.
+- **Truncation surfaced.** `fdp_info.truncated` and the page envelope's
+  `page.truncated` (`list_data_services`) report when a bounded traversal hit the
+  crawl cap — so a partial result is distinguishable from a complete one.
+
+### Documented
+
+- **G-07 — anonymous SPARQL default-graph trap.** An FDP that stores one named
+  graph per record (ADR-0007) leaves the *default* graph empty, so a bare
+  `SELECT ?s ?p ?o WHERE { ?s ?p ?o }` returns no rows even against a full
+  repository. The `GRAPH ?g { … }` requirement is now documented in the
+  tool-surface spec (§5.6), the `sparql_query` tool description, and the
+  quickstart; recorded as gap **G-07**. Verified live: 0 triples in the default
+  graph vs 573 across 31 named graphs.
+
 ## [0.1.1] — 2026-07-05
 
 ### Added

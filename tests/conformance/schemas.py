@@ -100,6 +100,7 @@ def page(item_schema: dict[str, Any]) -> dict[str, Any]:
                     "has_more": {"type": "boolean"},
                     "total": {"type": ["integer", "null"]},
                     "next_offset": {"type": "integer"},
+                    "truncated": {"type": "boolean"},
                 },
             },
         },
@@ -112,6 +113,7 @@ FDP_INFO: dict[str, Any] = {
     "required": ["repository", "kinds", "endpoints"],
     "additionalProperties": False,
     "properties": {
+        "truncated": {"type": "boolean"},
         "repository": RECORD,
         "kinds": {
             "type": "array",
