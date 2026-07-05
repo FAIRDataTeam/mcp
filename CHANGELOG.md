@@ -5,6 +5,23 @@ All notable changes to `fdp-mcp` are documented here. The format follows
 [semantic versioning](https://semver.org/). The **tool-surface contract** is
 versioned independently — see `docs/mcp-tool-surface.md` §10.
 
+## [Unreleased]
+
+### Added
+
+- **Endpoint discovery (G-05).** `sparql_query`, `search`, and `fdp_info` now
+  resolve the FDP's SPARQL/search endpoints from the **root metadata** — VoID
+  `void:sparqlEndpoint` and DCAT `dcat:DataService` / `dcat:endpointURL` — rather
+  than relying only on configured paths (`fdp_mcp/fdp/discovery.py`). Resolution
+  precedence per endpoint: an explicit operator override
+  (`FDP_MCP_FDP_SPARQL_PATH` / `FDP_MCP_FDP_SEARCH_PATH`) → the advertised endpoint
+  **on the FDP's own origin** (off-origin advertisements are refused — strict
+  egress) → the configured default. A resolved endpoint that 404s still degrades
+  the tool to `unsupported`, so API honesty is preserved. The root record is
+  fetched once per session (`FdpClient.root_resource` / `ldp.fetch_root`) and
+  shared by discovery and kind enumeration. Closes the bridge side of gap G-05
+  (server side shipped in FDPneo v0.6.0).
+
 ## [0.1.0] — 2026-07-04
 
 First release: a standalone MCP sidecar that exposes the metadata of any
