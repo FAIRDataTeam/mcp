@@ -213,13 +213,18 @@ closure, discovery memoization, truncation flags, G-07 docs, PR #2).
 - `discover_root` computes `truncated`, but `fdp_info` / `list_data_services`
   don't expose it — an agent can't tell a partial crawl from a complete one.
 
-### 4.7 [ ] Cross-repo coordination (server hand-off)
+### 4.7 [~] Cross-repo coordination (server hand-off)
 
-- `server/docs/conformance/agent-ready.md` still marks **G-05 "bridge-pending"**
-  (now shipped in v0.1.1 → flip to resolved-both-sides) and cites **v0.5.0**
-  while our gap report cites **v0.6.0** — reconcile the version.
-- Add the `fdp-mcp` service to the standard FDPneo deploy profiles (the 3.2
-  hand-off; compose snippet is in `docs/agent-quickstart.md` §6 and README).
+- **Deploy-profile wiring — done.** The `fdp-mcp` service is defined in
+  `server/deploy/stack/compose.yaml` (streamable-HTTP, `MCP_PORT` → 8002,
+  healthcheck, `--scale mcp=0` off-switch) and verified running in the local
+  `fdp` stack (`fdp-mcp-1` healthy, `/healthz` ok, wired to the FDP at
+  `SERVER_PORT`). Compose project name kept as `fdp` (cosmetic; the GraphDB repo,
+  Postgres DB, and Keycloak realm are all `fdp` too).
+- **Still open (server-doc edits, not this repo):**
+  `server/docs/conformance/agent-ready.md` marks **G-05 "bridge-pending"** (now
+  shipped in v0.1.1 → flip to resolved-both-sides) and cites **v0.5.0** while our
+  gap report cites **v0.6.0** — reconcile the version.
 
 ### Later / strategic (own ADR where noted)
 
