@@ -213,7 +213,7 @@ closure, discovery memoization, truncation flags, G-07 docs, PR #2).
 - `discover_root` computes `truncated`, but `fdp_info` / `list_data_services`
   don't expose it — an agent can't tell a partial crawl from a complete one.
 
-### 4.7 [~] Cross-repo coordination (server hand-off)
+### 4.7 [x] Cross-repo coordination (server hand-off)
 
 - **Deploy-profile wiring — done.** The `fdp-mcp` service is defined in
   `server/deploy/stack/compose.yaml` (streamable-HTTP, `MCP_PORT` → 8002,
@@ -221,10 +221,11 @@ closure, discovery memoization, truncation flags, G-07 docs, PR #2).
   `fdp` stack (`fdp-mcp-1` healthy, `/healthz` ok, wired to the FDP at
   `SERVER_PORT`). Compose project name kept as `fdp` (cosmetic; the GraphDB repo,
   Postgres DB, and Keycloak realm are all `fdp` too).
-- **Still open (server-doc edits, not this repo):**
-  `server/docs/conformance/agent-ready.md` marks **G-05 "bridge-pending"** (now
-  shipped in v0.1.1 → flip to resolved-both-sides) and cites **v0.5.0** while our
-  gap report cites **v0.6.0** — reconcile the version.
+- **Server-doc reconciliation — done.** `server/docs/conformance/agent-ready.md`
+  now marks **G-05 "Resolved (both sides)"** — server advertises (v0.6.0), bridge
+  consumes (v0.2.0) — and **G-06 "Resolved bridge-side"**; the version is
+  reconciled to v0.6.0 (matches our gap report). Both directions link, per the
+  API-honesty rule.
 
 ### Later / strategic (own ADR where noted)
 

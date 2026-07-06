@@ -133,7 +133,9 @@ Phase 19). Link entries both ways when triaged.
   can discover rather than be configured.
 - **Severity:** interop / degrading. Surfaced while wiring the task-1.3 SPARQL/
   search clients (configurable endpoint paths).
-- **Status:** **resolved for FDPneo** (server-side + bridge-side both shipped).
+- **Status:** **resolved (both sides)** — server advertises (FDPneo v0.6.0),
+  bridge consumes (`fdp-mcp` v0.2.0); confirmed in the server's
+  [agent-ready conformance](../../server/docs/conformance/agent-ready.md).
 - **Triage:** [server task 19.2](../../server/TASKS.md) — **fixed server-side
   (FDPneo v0.6.0)**: the root record now advertises `void:sparqlEndpoint` and DCAT
   `dcat:DataService` (`dcat:endpointURL`) for SPARQL/search. **Bridge follow-up —
