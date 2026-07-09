@@ -1,0 +1,49 @@
+# fdp-mcp sidecar — run the MCP bridge alongside an already-running FDP stack.
+#
+# The bridge is deployed *separately* from the FDP (its own image and release
+# cycle, per ADR-0018): this file does not start an FDP, it attaches the sidecar
+# to a network where one already lives and points it at that FDP.
+#
+# Default target is the FDPneo dev stack (`server/deploy/stack/compose.yaml`),
+# which runs as compose project `fdpneo` on network `fdpneo_default`, exposing
+# the server under the in-network alias `server`.
+#
+#   # bring the FDPneo stack up first, then:
+#   docker compose -f deploy/compose.yaml up -d
+#
+#   # MCP (streamable-HTTP) → http://localhost:8080/mcp
+#   # liveness             → http://localhost:8080/healthz
+#
+# Reuse against a different stack — override the network and/or the target URL:
+#   FDP_STACK_NETWORK=mystack_default \
+#   FDP_BASE_URL=http://my-fdp:8000 \
+#   docker compose -f deploy/compose.yaml up -d
+#
+# Or point at any external FDP (no shared network needed — comment out the
+# `networks:` block on the service and set an absolute FDP_BASE_URL):
+#   FDP_BASE_URL=https://your-fdp.example.org docker compose -f deploy/compose.yaml up -d
+
+services:
+  fdp-mcp:
+    image: ghcr.io/fairdatateam/fdp-mcp:${IMAGE_TAG:-latest}
+    # Uncomment to build from this repo instead of pulling the published image:
+    # build:
+    #   context: ..
+    #   dockerfile: Dockerfile
+    environment:
+      # In-network URL of the target FDP. `server` is the FDPneo stack's alias.
+      FDP_BASE_URL: ${FDP_BASE_URL:-http://server:8000}
+      FDP_MCP_HOST: 0.0.0.0
+      FDP_MCP_PORT: "8000"
+      FDP_MCP_LOG_LEVEL: ${FDP_MCP_LOG_LEVEL:-info}
+    ports:
+      - "${FDP_MCP_PORT:-8080}:8000"
+    networks:
+      - fdp
+    restart: unless-stopped
+
+networks:
+  # The FDP stack's network, joined as an external (pre-existing) network.
+  fdp:
+    external: true
+    name: ${FDP_STACK_NETWORK:-fdpneo_default}
