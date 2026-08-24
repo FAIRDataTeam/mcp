@@ -339,7 +339,7 @@ async def discover_root(client: FdpClient, *, max_fetches: int = 50) -> RootDisc
         visited.add(iri)
         try:
             resource = await fetch_resource(client, iri)
-        except (FdpNotFoundError, FdpUnauthorizedError, FdpUpstreamError):
+        except FdpNotFoundError, FdpUnauthorizedError, FdpUpstreamError:
             # A hidden, missing, or malformed member does not abort discovery.
             continue
         fetches += 1

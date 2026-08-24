@@ -3,7 +3,7 @@ name = "fdp-mcp"
 version = "0.2.0"
 description = "MCP sidecar exposing the metadata of any spec-compliant FAIR Data Point to AI agents through a read-only tool surface."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = { text = "Apache-2.0" }
 authors = [
   { name = "FDP Contributors" },
@@ -14,8 +14,7 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering",
 ]
 
@@ -84,7 +83,7 @@ packages = ["src/fdp_mcp"]
 # ----------------------------------------------------------------------------
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -128,7 +127,7 @@ docstring-code-format = true
 [tool.pyright]
 include = ["src", "tests"]
 exclude = ["**/__pycache__", ".venv"]
-pythonVersion = "3.12"
+pythonVersion = "3.14"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = "warning"
 reportUnknownMemberType = "warning"

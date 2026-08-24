@@ -6,7 +6,7 @@
 # conventions (uv builder + slim non-root runtime).
 
 # --- builder: resolve + install deps and the project into /app/.venv ---------
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 # --- runtime: slim image with just the venv + app, run as non-root -----------
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 RUN groupadd --system fdpmcp \
     && useradd --system --gid fdpmcp --home-dir /app --no-create-home fdpmcp

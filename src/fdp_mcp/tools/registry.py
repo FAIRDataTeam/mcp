@@ -38,7 +38,7 @@ def _session(ctx: Context[Any, Any, Any], settings: FdpMcpSettings) -> SessionCo
     """Resolve the SessionContext for this call (anonymous under stdio)."""
     try:
         request = ctx.request_context.request
-    except (LookupError, AttributeError):
+    except LookupError, AttributeError:
         request = None
     if request is not None:
         resolved = session_context_from_scope(request.scope)

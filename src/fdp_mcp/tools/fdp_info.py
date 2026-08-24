@@ -63,7 +63,7 @@ async def handle(
 async def _supports_sparql(client: FdpClient, endpoint: str) -> bool:
     try:
         await run_query(client, endpoint, "ASK {}")
-    except (FdpUnsupportedError, FdpError):
+    except FdpUnsupportedError, FdpError:
         return False
     return True
 
@@ -71,6 +71,6 @@ async def _supports_sparql(client: FdpClient, endpoint: str) -> bool:
 async def _supports_search(client: FdpClient, endpoint: str) -> bool:
     try:
         await run_search(client, endpoint, query="*", limit=1)
-    except (FdpUnsupportedError, FdpError):
+    except FdpUnsupportedError, FdpError:
         return False
     return True

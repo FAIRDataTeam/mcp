@@ -61,7 +61,7 @@ def _on_fdp_origin(url: str, settings: FdpMcpSettings) -> bool:
     """Whether ``url`` sits on the target FDP's origin (strict-egress gate)."""
     try:
         target = _origin(httpx.URL(url))
-    except (httpx.InvalidURL, ValueError):
+    except httpx.InvalidURL, ValueError:
         return False
     return target == _origin(httpx.URL(str(settings.fdp_base_url)))
 

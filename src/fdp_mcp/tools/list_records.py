@@ -64,6 +64,6 @@ async def _fetch_all(client: FdpClient, iris: list[str]) -> list[LdpResource]:
     for iri in iris:
         try:
             resources.append(await fetch_resource(client, iri))
-        except (FdpNotFoundError, FdpUnauthorizedError):
+        except FdpNotFoundError, FdpUnauthorizedError:
             continue
     return resources
