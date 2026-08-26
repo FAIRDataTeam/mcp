@@ -9,7 +9,7 @@ conditions — grounded in real records and cited by IRI.
 ```bash
 docker run --rm -p 8080:8000 \
   -e FDP_BASE_URL=https://your-fdp.example.org \
-  ghcr.io/fairdatateam/fdp-mcp:latest
+  ghcr.io/fairdatateam/fdp-mcp:main
 ```
 
 - **Works on the network that exists.** It consumes only the public, specified
@@ -90,7 +90,7 @@ The only required setting is `FDP_BASE_URL`.
 ```bash
 docker run --rm -p 8080:8000 \
   -e FDP_BASE_URL=https://your-fdp.example.org \
-  ghcr.io/fairdatateam/fdp-mcp:latest
+  ghcr.io/fairdatateam/fdp-mcp:main
 ```
 
 The bridge serves the **streamable-HTTP** MCP transport at
@@ -118,7 +118,10 @@ docker run --rm -p 8080:8000 -e FDP_BASE_URL=https://your-fdp.example.org fdp-mc
 ```
 
 The image is multi-stage (uv build → slim, non-root runtime). CI publishes
-`ghcr.io/fairdatateam/fdp-mcp` on every push to `main`.
+`ghcr.io/fairdatateam/fdp-mcp` on every push to `main` (tags: `main` + commit
+SHA; no `latest` tag). The package is currently **private** — pulling needs
+`docker login ghcr.io` with a token that has `read:packages`, or build from
+source as above.
 
 ---
 
@@ -157,7 +160,7 @@ agent-ready:
 ```yaml
 services:
   fdp-mcp:
-    image: ghcr.io/fairdatateam/fdp-mcp:latest
+    image: ghcr.io/fairdatateam/fdp-mcp:main
     environment:
       FDP_BASE_URL: http://server:8000   # the FDP container's in-network URL
       FDP_MCP_HOST: 0.0.0.0
@@ -186,7 +189,7 @@ as for any long-lived-connection service.
         "run", "--rm", "-i",
         "-e", "FDP_BASE_URL=https://your-fdp.example.org",
         "-e", "FDP_MCP_TRANSPORT=stdio",
-        "ghcr.io/fairdatateam/fdp-mcp:latest"
+        "ghcr.io/fairdatateam/fdp-mcp:main"
       ]
     }
   }

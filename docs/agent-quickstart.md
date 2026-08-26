@@ -28,8 +28,12 @@ The only required setting is `FDP_BASE_URL` — the FDP you want to expose.
 ```bash
 docker run --rm -p 8080:8000 \
   -e FDP_BASE_URL=https://your-fdp.example.org \
-  ghcr.io/fairdatateam/fdp-mcp:latest
+  ghcr.io/fairdatateam/fdp-mcp:main
 ```
+
+> The `fdp-mcp` package is currently **private** on GHCR: `docker login
+> ghcr.io` with a token that has `read:packages` first, or build the image
+> from this repo (`docker build -t fdp-mcp:main .`).
 
 The bridge serves the **streamable-HTTP** MCP transport at
 `http://localhost:8080/mcp` and a liveness probe at `http://localhost:8080/healthz`.
@@ -67,7 +71,7 @@ entry to its `claude_desktop_config.json`
         "run", "--rm", "-i",
         "-e", "FDP_BASE_URL=https://your-fdp.example.org",
         "-e", "FDP_MCP_TRANSPORT=stdio",
-        "ghcr.io/fairdatateam/fdp-mcp:latest"
+        "ghcr.io/fairdatateam/fdp-mcp:main"
       ]
     }
   }
@@ -177,7 +181,7 @@ Point the bridge at a live FDP, connect Claude (or any MCP client), and:
    ```bash
    docker run --rm -p 8080:8000 \
      -e FDP_BASE_URL=https://a-different-fdp.example.org \
-     ghcr.io/fairdatateam/fdp-mcp:latest
+     ghcr.io/fairdatateam/fdp-mcp:main
    ```
 
    Have the same conversation. Zero code changes — the moment that shows this is
@@ -201,7 +205,7 @@ the FDP container:
 # add to the FDPneo deploy profile's compose file
 services:
   fdp-mcp:
-    image: ghcr.io/fairdatateam/fdp-mcp:latest
+    image: ghcr.io/fairdatateam/fdp-mcp:main
     environment:
       # the FDP container's in-network URL
       FDP_BASE_URL: http://server:8000
