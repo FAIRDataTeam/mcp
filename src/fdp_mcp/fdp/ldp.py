@@ -69,6 +69,9 @@ class LdpResource:
     links: LinkSet
     status: int
     page: PageInfo | None
+    # The response ``ETag`` (validator for ``If-Match`` on a later write); ``None``
+    # when the FDP sent none.
+    etag: str | None = None
 
     @property
     def _subject(self) -> URIRef:
@@ -147,6 +150,7 @@ async def fetch_resource(
         links=doc.links,
         status=doc.status,
         page=_page_info(doc.headers),
+        etag=doc.headers.get("etag"),
     )
 
 

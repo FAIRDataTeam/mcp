@@ -5,6 +5,38 @@ All notable changes to `fdp-mcp` are documented here. The format follows
 [semantic versioning](https://semver.org/). The **tool-surface contract** is
 versioned independently — see `docs/mcp-tool-surface.md` §10.
 
+## [0.3.0] — 2026-08-26
+
+### Added
+
+- **Opt-in write extension (ADR-0024; contract 1.1.0-draft).** Four new tools —
+  `create_record` (LDP `POST`), `update_record` (`PUT` replace or SPARQL-update
+  `PATCH`), `delete_record`, `set_record_state` (`DRAFT`/`PUBLISHED`/`ARCHIVED`)
+  — registered **only** when `FDP_MCP_ENABLE_WRITE=true`. They refuse anonymous
+  sessions before any network call (`authentication_required`), require the
+  caller to present `if_match` (the record's `etag`), validate RDF bodies
+  (parse + one primary subject) and SPARQL updates (no `LOAD`/`SERVICE`/graph
+  management/off-origin graphs) client-side, send the body verbatim, and
+  forward every write for the FDP to decide. PATCH and state transitions are
+  optional capabilities (`ldp_patch`, `state_transition`) that degrade to
+  `unsupported`.
+- **`etag` on the Record object** (`get_record`, `list_records` items) — the
+  validator to pass as `if_match`.
+- **Error codes** `precondition_failed` (412/428), `conflict` (409),
+  `validation_failed` (422, the FDP's SHACL report relayed in `details`),
+  `unsupported_media_type` (415), `authentication_required`.
+- `FdpClient.put/patch/delete`, `fdp/write.py`, `sparql.classify_update`.
+- Server instructions switch to a read-write text when enabled; a warning is
+  logged for `stdio` + write (inert: no credential can be forwarded).
+
+### Documented
+
+- **G-08** the advertised `hasStateTransition` link does not resolve on FDPneo
+  (the bridge tries it first, then falls back to the `/fdp-api/…/state`
+  convention); **G-09** the state-transition endpoint is not standardised
+  across implementations; **G-10** FDPneo's OpenAPI omits `PATCH`, `/state`,
+  and `securitySchemes`.
+
 ## [0.2.0] — 2026-07-05
 
 ### Added

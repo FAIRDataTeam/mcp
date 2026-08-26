@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 import uvicorn
+from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.types import Message, Receive, Scope, Send
 
@@ -49,6 +50,67 @@ def _fresh_registry() -> SessionRegistry:
 
 
 # --- assembly ---------------------------------------------------------------
+
+
+def _tool_names(server: FastMCP) -> set[str]:
+    return {tool.name for tool in server._tool_manager.list_tools()}  # pyright: ignore[reportPrivateUsage]
+
+
+WRITE_TOOLS = {"create_record", "update_record", "delete_record", "set_record_state"}
+
+
+def test_write_tools_absent_by_default(settings: FdpMcpSettings) -> None:
+    server = build_server(settings)
+    assert _tool_names(server).isdisjoint(WRITE_TOOLS)
+    assert "Read-only" in (server.instructions or "")
+
+
+def test_write_tools_registered_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FDP_BASE_URL", "https://fdp.example.org")
+    monkeypatch.setenv("FDP_MCP_ENABLE_WRITE", "true")
+    server = build_server(FdpMcpSettings())  # type: ignore[call-arg]
+    assert _tool_names(server) >= WRITE_TOOLS
+    assert "create, update, delete" in (server.instructions or "")
+
+
+async def test_anonymous_write_is_refused_before_any_network_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import respx
+    from mcp.shared.memory import create_connected_server_and_client_session
+
+    monkeypatch.setenv("FDP_BASE_URL", "https://fdp.example.org")
+    monkeypatch.setenv("FDP_MCP_ENABLE_WRITE", "true")
+    server = build_server(FdpMcpSettings())  # type: ignore[call-arg]
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.route()  # any request at all
+        async with create_connected_server_and_client_session(server) as client:
+            # The in-memory transport carries no HTTP headers: anonymous session.
+            result = await client.call_tool(
+                "delete_record", {"iri": "https://fdp.example.org/dataset/1", "if_match": '"v"'}
+            )
+    payload = result.structuredContent
+    assert payload is not None
+    assert payload["error"]["code"] == "authentication_required"
+    assert route.call_count == 0
+
+
+def test_stdio_with_write_enabled_warns(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FDP_BASE_URL", "https://fdp.example.org")
+    monkeypatch.setenv("FDP_MCP_ENABLE_WRITE", "true")
+    monkeypatch.setenv("FDP_MCP_TRANSPORT", "stdio")
+    warnings: list[str] = []
+
+    def record_warning(event: str, **_kw: Any) -> None:
+        warnings.append(event)
+
+    def no_run(_fn: object) -> None:
+        return None
+
+    monkeypatch.setattr(server_module.anyio, "run", no_run)
+    monkeypatch.setattr(server_module.logger, "warning", record_warning)
+    run(FdpMcpSettings())  # type: ignore[call-arg]
+    assert "write_enabled_on_stdio_is_inert" in warnings
 
 
 def test_build_server_registers_health_route(settings: FdpMcpSettings) -> None:

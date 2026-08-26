@@ -199,8 +199,75 @@ Phase 19). Link entries both ways when triaged.
 
 ---
 
+## G-08 — the advertised `hasStateTransition` link does not resolve
+
+- **Capability:** `state_transition`
+- **Blocks / degrades:** [`set_record_state`](mcp-tool-surface.md#512-set_record_state)
+  — a link-following bridge that `POST`s to the advertised affordance gets a
+  `404` from the LDP catch-all.
+- **Implementations affected:** FDPneo. `signposting.py` emits
+  `Link: <{record}/state>; rel="https://w3id.org/fdp/o#hasStateTransition"`
+  while the transition router is mounted under the reserved prefix, so the live
+  endpoint is `{base}/fdp-api/{record path}/state`.
+- **Public-surface status:** the affordance is the *right* spec-honest way to
+  discover the endpoint (ADR-0022's whole point); it just points at the wrong
+  URL. Until fixed the bridge tries the advertised link first, then falls back
+  to the `/fdp-api/…/state` convention (isolated in `fdp/write.py`, removable
+  once this is closed).
+- **Suggested resolution:** server-side — make the advertised link target the
+  mounted route (or mount the route at the advertised URL). One-line fix plus a
+  signposting test that dereferences the link.
+- **Severity:** degrading (the fallback masks it on FDPneo; any other FDP that
+  copies the affordance pattern would be `unsupported`).
+- **Triage:** untriaged.
+
+---
+
+## G-09 — publication-state transition endpoint is not standardised
+
+- **Capability:** `state_transition`
+- **Blocks / degrades:** [`set_record_state`](mcp-tool-surface.md#512-set_record_state)
+  → `unsupported` on FDPs whose transition endpoint the bridge cannot discover.
+- **Implementations affected:** FDPneo (`POST …/fdp-api/{path}/state`, body
+  `{"to": …}`, response `{record, from_state, to_state}`) vs. the Java reference
+  implementation (`…/meta/state`, a different request/response shape). Both
+  model `DRAFT|PUBLISHED|ARCHIVED` (ADR-0010) but the wire contract differs.
+- **Public-surface status:** the FDP specification defines the states but not
+  the transition operation. The `hasStateTransition` affordance (ADR-0022) is
+  the portable hook; only FDPneo emits it (and see G-08).
+- **Suggested resolution:** an FDP-spec note standardising the transition
+  request (`POST` of `{"to"}` to the advertised affordance) so bridges need no
+  product conventions at all.
+- **Severity:** interop.
+- **Triage:** untriaged.
+
+---
+
+## G-10 — FDPneo OpenAPI omits the write surface an agent needs
+
+- **Capability:** (documentation / discovery)
+- **Blocks / degrades:** none directly; it forced the write tools to be
+  hand-built from the LDP conformance matrix instead of the machine-readable
+  API description.
+- **Implementations affected:** FDPneo. `/fdp-api/openapi.json` emits
+  `GET/PUT/POST/DELETE` per resource definition but **no `PATCH`**, **no
+  `/state`**, and **no `securitySchemes`/`security`** (bearer auth is only
+  documented in prose; only `401`/`403` response stubs exist).
+- **Public-surface status:** the OpenAPI document is served unconditionally and
+  is the natural place for an agent (or a tool generator) to learn the write
+  surface and its auth scheme.
+- **Suggested resolution:** add `PATCH` (with `requestBody` media type
+  `application/sparql-update` and the `If-Match` header parameter), the
+  `/state` operation, and a `bearerAuth` security scheme to the generated
+  document.
+- **Severity:** degrading (documentation).
+- **Triage:** untriaged.
+
+---
+
 *Entries G-01…G-03 are seeded from the task-1.1 surface survey; G-04 is the first
 fixture-confirmed divergence (task 1.2); G-05 and G-06 were surfaced while wiring
 the task-1.3 SPARQL/search/shapes clients (both now resolved bridge-side); G-07
-was found by live validation against FDPneo. Each entry is tied to the tool it
-blocks or degrades; the server repo triages them into Phase 19.*
+was found by live validation against FDPneo; G-08…G-10 were surfaced while
+designing the opt-in write extension (task 5.1, ADR-0024). Each entry is tied to
+the tool it blocks or degrades; the server repo triages them into Phase 19.*

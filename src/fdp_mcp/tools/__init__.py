@@ -7,7 +7,9 @@ layer: they translate, paginate, and shape results per the contract in
 ``docs/mcp-tool-surface.md`` — no business logic, no caching beyond per-session
 memoization.
 
-Modules are implemented across Phase 2 (tasks 2.1 and 2.2).
+The opt-in write tools (``create_record``, ``update_record``, ``delete_record``,
+``set_record_state``; ADR-0024, contract §5.9-§5.12) follow the same pattern
+and are registered only when ``FDP_MCP_ENABLE_WRITE`` is set.
 """
 
 from __future__ import annotations

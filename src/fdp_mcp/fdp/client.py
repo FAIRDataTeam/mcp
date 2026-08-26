@@ -46,6 +46,13 @@ def _origin(url: httpx.URL) -> tuple[str, str, int]:
     return (url.scheme, url.host, url.port or default_port)
 
 
+def _write_headers(accept: str, content_type: str, if_match: str | None) -> dict[str, str]:
+    headers = {"accept": accept, "content-type": content_type}
+    if if_match is not None:
+        headers["if-match"] = if_match
+    return headers
+
+
 @dataclass(frozen=True)
 class FetchedDocument:
     """A raw FDP response body plus the bits the layers above it need."""
@@ -111,15 +118,60 @@ class FdpClient:
         return await self._fetch("GET", url, headers={"accept": accept})
 
     async def post(
-        self, url: str, *, content: str | bytes, content_type: str, accept: str
+        self,
+        url: str,
+        *,
+        content: str | bytes,
+        content_type: str,
+        accept: str,
+        extra_headers: dict[str, str] | None = None,
     ) -> FetchedDocument:
-        """POST a body to ``url`` (e.g. a SPARQL query, a search JSON), guarded."""
+        """POST a body to ``url`` (a SPARQL query, a search JSON, a new LDP member), guarded."""
+        headers = {"accept": accept, "content-type": content_type}
+        if extra_headers:
+            headers.update(extra_headers)
+        return await self._fetch("POST", url, headers=headers, content=content)
+
+    async def put(
+        self,
+        url: str,
+        *,
+        content: str | bytes,
+        content_type: str,
+        if_match: str | None = None,
+        accept: str = DEFAULT_RDF_ACCEPT,
+    ) -> FetchedDocument:
+        """PUT (create-or-replace) a resource body, guarded; ``If-Match`` when given."""
         return await self._fetch(
-            "POST",
+            "PUT",
             url,
-            headers={"accept": accept, "content-type": content_type},
+            headers=_write_headers(accept, content_type, if_match),
             content=content,
         )
+
+    async def patch(
+        self,
+        url: str,
+        *,
+        content: str | bytes,
+        content_type: str,
+        if_match: str | None = None,
+        accept: str = DEFAULT_RDF_ACCEPT,
+    ) -> FetchedDocument:
+        """PATCH a resource (e.g. ``application/sparql-update``), guarded."""
+        return await self._fetch(
+            "PATCH",
+            url,
+            headers=_write_headers(accept, content_type, if_match),
+            content=content,
+        )
+
+    async def delete(self, url: str, *, if_match: str | None = None) -> FetchedDocument:
+        """DELETE a resource, guarded; ``If-Match`` when given."""
+        headers = {"accept": "application/json, */*;q=0.1"}
+        if if_match is not None:
+            headers["if-match"] = if_match
+        return await self._fetch("DELETE", url, headers=headers)
 
     async def _fetch(
         self,

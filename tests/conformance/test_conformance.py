@@ -16,9 +16,19 @@ from jsonschema import validate
 
 from fdp_mcp.config import FdpMcpSettings
 from fdp_mcp.fdp.client import FdpClient
-from fdp_mcp.fdp.errors import FdpNotFoundError, FdpUnsupportedError
+from fdp_mcp.fdp.errors import (
+    AuthenticationRequiredError,
+    FdpConflictError,
+    FdpNotFoundError,
+    FdpPreconditionError,
+    FdpUnsupportedError,
+    FdpUnsupportedMediaTypeError,
+    FdpValidationError,
+)
 from fdp_mcp.shaping import result_from_error
 from fdp_mcp.tools import (
+    create_record,
+    delete_record,
     fdp_info,
     get_access_conditions,
     get_record,
@@ -26,9 +36,12 @@ from fdp_mcp.tools import (
     list_data_services,
     list_records,
     search,
+    set_record_state,
     sparql_query,
+    update_record,
 )
 from tests.conformance import schemas
+from tests.conftest import NEW_DATASET, NEW_DATASET_TTL, WriteSurface
 
 pytestmark = pytest.mark.conformance
 
@@ -126,3 +139,52 @@ def test_error_and_unsupported_envelopes_conform() -> None:
     validate(
         result_from_error("search", FdpUnsupportedError("search-api", "no")), schemas.UNSUPPORTED
     )
+
+
+# --- write surface (contract 1.1, ADR-0024) ----------------------------------
+
+
+async def test_write_tool_results_conform(
+    fdp_settings: FdpMcpSettings,
+    register_fdpneo: Callable[..., None],
+    register_fdpneo_write: Callable[[respx.MockRouter], None],
+    write_surface: WriteSurface,
+) -> None:
+    with respx.mock(assert_all_called=False) as mock:
+        register_fdpneo(mock)
+        register_fdpneo_write(mock)
+        async with FdpClient(fdp_settings) as client:
+            created = await create_record.handle(
+                client, fdp_settings, parent_iri=f"{BASE}/catalog/1", body=NEW_DATASET_TTL
+            )
+            validate(created, schemas.CREATE_RECORD)
+            updated = await update_record.handle(
+                client,
+                fdp_settings,
+                iri=NEW_DATASET,
+                if_match=created["etag"],
+                body=NEW_DATASET_TTL,
+            )
+            validate(updated, schemas.UPDATE_RECORD)
+            state = await set_record_state.handle(client, iri=NEW_DATASET, to="PUBLISHED")
+            validate(state, schemas.SET_RECORD_STATE)
+            deleted = await delete_record.handle(client, iri=NEW_DATASET, if_match=updated["etag"])
+            validate(deleted, schemas.DELETE_RECORD)
+    assert write_surface.exists is False
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        FdpPreconditionError("x"),
+        FdpConflictError("x", details={"from": "DRAFT", "to": "ARCHIVED"}),
+        FdpValidationError("x", details={"shape": "s", "violations": []}),
+        FdpUnsupportedMediaTypeError("x"),
+        AuthenticationRequiredError("x"),
+    ],
+)
+def test_write_error_envelopes_conform(exc: Exception) -> None:
+    from fdp_mcp.fdp.errors import FdpError
+
+    assert isinstance(exc, FdpError)
+    validate(result_from_error("update_record", exc), schemas.ERROR)

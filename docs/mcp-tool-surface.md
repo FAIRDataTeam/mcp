@@ -1,9 +1,10 @@
 # fdp-mcp tool-surface specification
 
-**Contract version:** 1.0.0-draft
-**Status:** Draft (task 1.1). Binding once tagged `1.0.0`.
-**Applies to:** the read-only MCP tool surface exposed by a bridge over a single
-FAIR Data Point (FDP).
+**Contract version:** 1.1.0-draft
+**Status:** Draft (task 1.1; write extension task 5.1). Binding once tagged.
+**Applies to:** the MCP tool surface exposed by a bridge over a single FAIR Data
+Point (FDP): eight read tools, plus an **opt-in write extension** of four tools
+([§5.9](#59-create_record)–[§5.12](#512-set_record_state); ADR-0024).
 
 This document is the **contract**, written to be implementation-agnostic: any
 party can implement it against any spec-compliant FDP, and `fdp-mcp` is its
@@ -13,8 +14,9 @@ bumping the version per [§10](#10-contract-versioning)).
 
 It is deliberately independent of any one FDP product. It refers only to the
 **public, specified FDP surface**: content-negotiated LDP `GET` of records and
-containers, the SPARQL query endpoint, an optional search API, and published
-SHACL shapes. It never refers to a private or product-specific endpoint. Product
+containers, the SPARQL query endpoint, an optional search API, published SHACL
+shapes, and — for the write extension — LDP `POST`/`PUT`/`PATCH`/`DELETE` with
+`If-Match` and the publication-state transition endpoint. It never refers to a private or product-specific endpoint. Product
 specifics (how FDPneo or the Java reference implementation happen to expose a
 thing) live in [§11](#11-reference-implementation-notes) and, where the public
 surface falls short, in [`fdp-api-gaps.md`](fdp-api-gaps.md) — not in the
@@ -24,7 +26,8 @@ contract.
 
 ## 1. Scope and principles
 
-The surface is **eight read-only tools**:
+The surface is **eight read tools**, plus **four opt-in write tools** that a
+deployment exposes only when explicitly enabled (`FDP_MCP_ENABLE_WRITE`):
 
 | Tool | Requirement | One-line purpose |
 |---|---|---|
@@ -36,6 +39,10 @@ The surface is **eight read-only tools**:
 | [`sparql_query`](#56-sparql_query) | Optional | Read-only SPARQL over the public endpoint. |
 | [`get_access_conditions`](#57-get_access_conditions) | Required | License, rights/ODRL, and contact for a record. |
 | [`list_data_services`](#58-list_data_services) | Required | DCAT `DataService` records and their endpoints. |
+| [`create_record`](#59-create_record) | Write extension | Create a record in a container (LDP `POST`). |
+| [`update_record`](#510-update_record) | Write extension | Replace (`PUT`) or patch (SPARQL-update `PATCH`) a record under `If-Match`. |
+| [`delete_record`](#511-delete_record) | Write extension | Delete a record under `If-Match`. |
+| [`set_record_state`](#512-set_record_state) | Write extension | Move a record between `DRAFT`/`PUBLISHED`/`ARCHIVED`. |
 
 "Required" vs "Optional" is defined in [§4](#4-required-vs-optional-and-explicit-degradation).
 
@@ -52,8 +59,12 @@ These principles bind every tool; they restate the ground rules in the repo
    passed through verbatim ([§3.2](#32-credentials-and-sessions)). Results
    therefore reflect *the FDP's own* publication-state / policy decisions for the
    presented (or absent) credential — the bridge neither widens nor narrows them.
-3. **Read-only.** No tool mutates FDP state. `sparql_query` rejects update forms
-   before any network call ([§5.6](#56-sparql_query)).
+3. **Read-only by default.** With the write extension disabled (the default) no
+   tool mutates FDP state; `sparql_query` always rejects update forms before any
+   network call ([§5.6](#56-sparql_query)). When a deployment enables the write
+   extension ([§5.9](#59-create_record)–[§5.12](#512-set_record_state)), writes
+   are explicit tools, require a forwarded credential, and are decided solely by
+   the FDP — the bridge still holds no authorization logic (principle 2).
 4. **Strict egress.** A tool contacts only the configured target FDP's origin. It
    never dereferences an arbitrary IRI found in metadata.
 5. **Cite by IRI.** Every record-shaped result carries the subject `iri`, so an
@@ -97,6 +108,13 @@ in memory for the session only — never stored, cached, or logged. A tool's
 results are exactly what the FDP returns for that credential (or for anonymous
 access when none is supplied). The contract exposes **no credential parameter**
 on any tool.
+
+Write tools ([§5.9](#59-create_record)–[§5.12](#512-set_record_state)) cannot
+succeed without a credential for the FDP to evaluate, so a write call on an
+anonymous session is answered `authentication_required`
+([§3.4](#34-the-error-envelope)) **before any network call**. This is a
+fail-fast, not an authorization decision: every authenticated call is forwarded
+verbatim and the FDP alone allows or denies it.
 
 ### 3.3 The result envelope
 
@@ -157,6 +175,11 @@ credentials; `details` is an optional object with structured context.
 | `upstream_timeout` | The FDP did not respond in time. | Slow endpoint, large query. |
 | `too_large` | The FDP response exceeded the bridge's size cap. | Oversized graph/result. |
 | `unsupported` | The tool's backing surface is absent on this FDP. | Optional tool only — but returned as a *result*, not an error; see [§3.5](#35-the-unsupported-result). |
+| `precondition_failed` | The FDP refused a conditional write. | `If-Match` missing (`428`) or stale (`412`): re-read the record (`etag`) and retry. Write tools only. |
+| `conflict` | The FDP reported a conflict. | `409`: a `slug` already in use; a publication-state transition the FDP does not allow (`details` carries the transitions it advertises). Write tools only. |
+| `validation_failed` | The FDP rejected the body as invalid. | `422`: SHACL violations. `details` is the FDP's own report (`shape`, `violations[]`) so the agent can repair the body. Write tools only. |
+| `unsupported_media_type` | The FDP does not accept the body's media type. | `415` on a write. Write tools only. |
+| `authentication_required` | A write was requested on an anonymous session. | Refused by the bridge before any network call ([§3.2](#32-credentials-and-sessions)). Write tools only. |
 
 > **Why 404 is not disambiguated.** A spec-compliant FDP returns `404` both for a
 > nonexistent record and for one the caller is not allowed to see (publication
@@ -185,6 +208,10 @@ error, so an agent can route around a missing capability instead of treating a
 blank as "nothing here." A **required** tool never returns `unsupported`. Every
 `unsupported` a bridge can emit corresponds to an entry in `fdp-api-gaps.md`.
 
+Capability names in use: `search-api`, `sparql`, `shapes`, `signposting`
+(read tools); `ldp_patch` and `state_transition` (write extension,
+[§5.10](#510-update_record) / [§5.12](#512-set_record_state)).
+
 ### 3.6 The Record object
 
 The common shape for a single record. Framed JSON-LD by default
@@ -196,6 +223,7 @@ The common shape for a single record. Framed JSON-LD by default
   "types": ["http://www.w3.org/ns/dcat#Dataset"],
   "title": "Cohort X phenotype registry",
   "kind": "dataset",
+  "etag": "\"a1b2c3\"",
   "metadata": { "@context": { /* … */ }, "@id": "…", "…": "…" },
   "links": {
     "parent": "https://fdp.example.org/catalog/7",
@@ -217,6 +245,9 @@ The common shape for a single record. Framed JSON-LD by default
   first found), or `null`.
 - `kind` (nullable): the runtime kind slug ([§3.9](#39-kinds)) when the bridge
   could resolve it, else `null`.
+- `etag` (nullable; since 1.1.0): the FDP's `ETag` for the representation read,
+  or `null` when it sent none. It is the value to pass as `if_match` to
+  `update_record` / `delete_record` — read before you write.
 - `metadata` (required): the record's own metadata as framed JSON-LD (or the raw
   serialization when `format` was requested — see §3.8).
 - `links` (required object): navigation/citation links the FDP emitted, chiefly
@@ -299,6 +330,15 @@ result ([§3.5](#35-the-unsupported-result)) and the gap is logged.
     *discovery* (resolving a kind to its shape document) is under-specified and
     varies. When the bridge cannot resolve or fetch a kind's shape it returns
     `unsupported`, capability `shapes`.
+
+**Write extension** tools are neither required nor optional in the above sense:
+a conforming bridge MAY omit them entirely (read-only deployment) and, when it
+offers them, MUST expose them only behind an explicit operator opt-in. Within
+the extension, `create_record`, `update_record` (`body` mode) and
+`delete_record` rest on the LDP write surface every conformant FDP exposes and
+fail with an **error**; `update_record` (`patch` mode) and `set_record_state`
+depend on surface an FDP MAY lack and degrade to `unsupported` (capabilities
+`ldp_patch`, `state_transition`).
 
 The required/optional split, and the exact capability probes, are informed by
 what the Java reference implementation exposes vs. FDPneo; those differences are
@@ -684,6 +724,174 @@ An FDP with no `DataService` records returns an empty page (`items: []`,
 
 **Errors:** `upstream_*` only (enumeration failure).
 
+### 5.9 `create_record`
+
+**Write extension.** Create a new record as a member of a container (LDP `POST`).
+
+```json
+{
+  "type": "object",
+  "required": ["parent_iri", "body"],
+  "properties": {
+    "parent_iri": { "type": "string", "format": "iri", "description": "The container to add to (the root, a catalog, a dataset…)." },
+    "body": { "type": "string", "description": "RDF describing exactly one primary subject: use <> for the new record, or a single typed IRI." },
+    "media_type": { "enum": ["text/turtle", "application/ld+json", "application/rdf+xml", "application/n-triples"], "default": "text/turtle" },
+    "slug": { "type": "string", "description": "Suggested last path segment (LDP Slug); the FDP may ignore it." }
+  }
+}
+```
+
+**Surface:** `POST <parent_iri>` with `Content-Type: <media_type>` (and `Slug`),
+then a content-negotiated `GET` of the `Location` the FDP minted. The FDP
+validates the body against the container's member shape.
+
+**Pre-network validation (bridge-side, syntactic only):** the body MUST parse
+as `media_type`, be non-empty, and name exactly one primary subject (the
+relative `<>`, or one IRI subject; when several IRIs appear, exactly one of
+them typed). Anything else is `invalid_argument` before any request is sent.
+The body is then sent **verbatim** — the bridge never reserialises or edits it,
+and never runs SHACL itself.
+
+**Result:**
+
+```json
+{
+  "iri": "https://fdp.example.org/dataset/42",
+  "etag": "\"v1\"",
+  "state": "DRAFT",
+  "record": { /* Record object, §3.6 */ }
+}
+```
+
+`state` is the record's publication state when the FDP serves one
+(`fdp:metadataState`), else `null`; new records typically start as `DRAFT` —
+use [`set_record_state`](#512-set_record_state) to publish.
+
+**Errors:** `authentication_required` (anonymous session); `invalid_argument`
+(bad IRI, unparseable/ambiguous body, `parent_iri` does not accept `POST` —
+HTTP 405); `validation_failed` (422, SHACL report in `details`); `conflict`
+(409, `slug` taken); `unsupported_media_type` (415); `upstream_unauthorized`
+(401/403 — the FDP's decision, relayed); `not_found`; `upstream_*`.
+
+### 5.10 `update_record`
+
+**Write extension.** Modify one record under an `If-Match` precondition, either
+by full replacement (`body`, LDP `PUT` — portable) or by a SPARQL update
+(`patch`, LDP `PATCH` with `application/sparql-update` — optional capability
+`ldp_patch`). Exactly one of `body` / `patch` MUST be given.
+
+```json
+{
+  "type": "object",
+  "required": ["iri", "if_match"],
+  "properties": {
+    "iri": { "type": "string", "format": "iri" },
+    "if_match": { "type": "string", "description": "The etag from get_record for the version you read. Mandatory." },
+    "body": { "type": "string", "description": "Full replacement RDF (same rules as create_record.body)." },
+    "media_type": { "enum": ["text/turtle", "application/ld+json", "application/rdf+xml", "application/n-triples"], "default": "text/turtle" },
+    "patch": { "type": "string", "description": "A SPARQL 1.1 update: INSERT DATA / DELETE DATA / DELETE WHERE / DELETE…INSERT…WHERE." }
+  }
+}
+```
+
+**Why `if_match` is mandatory.** The bridge is stateless and never manufactures
+a precondition it did not observe: the agent MUST read the record
+([`get_record`](#53-get_record) → `etag`) and present that validator. A stale
+value is `precondition_failed` — re-read and retry. This makes lost updates
+impossible by construction.
+
+**Pre-network validation:** `body` as in §5.9. `patch` MUST parse as a SPARQL
+update whose operations are only `INSERT DATA`, `DELETE DATA`, `DELETE WHERE`,
+or `DELETE/INSERT … WHERE`; `LOAD` (the FDP would fetch an arbitrary URL on the
+bridge's behalf — egress by proxy), `SERVICE`, `CLEAR`, `DROP`, `CREATE`,
+`ADD`, `MOVE`, `COPY`, and any `GRAPH`/`WITH`/`USING` naming a graph outside the
+FDP origin are `invalid_argument` before any request is sent.
+
+**Surface:** `PUT <iri>` or `PATCH <iri>` with `If-Match`, then a `GET` of the
+updated record.
+
+**Result:**
+
+```json
+{ "iri": "…", "etag": "\"v2\"", "mode": "replace", "record": { /* §3.6 */ } }
+```
+
+`mode` is `"replace"` or `"patch"`.
+
+**Degradation:** an FDP that answers `PATCH` with 405/415 lacks SPARQL-update
+PATCH → `unsupported`, capability `ldp_patch`, `alternative` pointing at `body`
+mode. The write itself is the probe (no extra round trip; nothing is changed
+when it is refused).
+
+**Errors:** `authentication_required`; `invalid_argument` (neither/both of
+`body`/`patch`, empty `if_match`, bad body/update); `precondition_failed`
+(412/428); `validation_failed` (422); `conflict` (409); `upstream_unauthorized`;
+`not_found`; `upstream_*`.
+
+### 5.11 `delete_record`
+
+**Write extension.** Delete one record (LDP `DELETE`) under `If-Match`.
+
+```json
+{
+  "type": "object",
+  "required": ["iri", "if_match"],
+  "properties": {
+    "iri": { "type": "string", "format": "iri" },
+    "if_match": { "type": "string" }
+  }
+}
+```
+
+**Result:** `{ "iri": "…", "deleted": true }`.
+
+**Errors:** `authentication_required`; `invalid_argument`; `precondition_failed`;
+`conflict` (409 — e.g. the FDP refuses to delete a non-empty container);
+`upstream_unauthorized`; `not_found`; `upstream_*`.
+
+### 5.12 `set_record_state`
+
+**Write extension; optional capability `state_transition`.** Request a
+publication-state transition for a record.
+
+```json
+{
+  "type": "object",
+  "required": ["iri", "to"],
+  "properties": {
+    "iri": { "type": "string", "format": "iri" },
+    "to": { "enum": ["DRAFT", "PUBLISHED", "ARCHIVED"] }
+  }
+}
+```
+
+**Surface:** the bridge first `GET`s the record and follows its advertised
+state-transition affordance (`Link` `rel="https://w3id.org/fdp/o#hasStateTransition"`,
+which MUST be on the FDP origin), `POST`ing `{"to": "<state>"}` as JSON. Where
+that affordance is absent or does not resolve, an implementation MAY try a
+documented product convention ([§11](#11-reference-implementation-notes)) before
+degrading. The FDP alone decides which transitions the caller may perform; the
+bridge never inspects `fdp:allowedStateTransition` to *block* — it only relays
+those hints in a `conflict`'s `details`.
+
+**Result:**
+
+```json
+{ "iri": "…", "from_state": "DRAFT", "to_state": "PUBLISHED", "record": { /* §3.6 */ } }
+```
+
+`from_state` is `null` when the FDP did not report it; `record` is `null` when
+the record is no longer visible to the presented credential after the
+transition (e.g. unpublishing to `DRAFT`).
+
+**Degradation:** no working transition endpoint → `unsupported`, capability
+`state_transition`.
+
+**Errors:** `authentication_required`; `invalid_argument` (unknown `to`);
+`conflict` (409 — disallowed transition; `details` includes `current_state` and
+`allowed_transitions` when known); `upstream_unauthorized`; `not_found`;
+`upstream_*`.
+
 ---
 
 ## 6. Egress and safety (contract-level)
@@ -695,6 +903,13 @@ An FDP with no `DataService` records returns an empty page (`items: []`,
   yields `upstream_timeout` / `too_large` rather than an unbounded wait or buffer.
 - `sparql_query` MUST enforce read-only classification client-side
   ([§5.6](#56-sparql_query)) — rejection happens before the network call.
+- Write tools MUST be absent unless the operator has explicitly enabled the
+  write extension; MUST refuse anonymous sessions before any network call
+  ([§3.2](#32-credentials-and-sessions)); MUST validate RDF bodies and SPARQL
+  updates client-side ([§5.9](#59-create_record), [§5.10](#510-update_record)),
+  refusing `LOAD`/`SERVICE` and off-origin graph names; MUST send the agent's
+  body verbatim; and MUST require `if_match` from the caller rather than
+  fetching it themselves. Every write is forwarded to, and decided by, the FDP.
 
 ## 7. Determinism and honesty
 
@@ -704,11 +919,13 @@ An FDP with no `DataService` records returns an empty page (`items: []`,
 - A capability the FDP lacks is reported as `unsupported`, never silently
   swallowed.
 
-## 8. Non-goals (v1)
+## 8. Non-goals
 
-No mutation tools; no MCP resources/prompts; no multi-FDP or Index-level
-operations; no external dereferencing; no capability-profile schema authoring; no
-access-request drafting. (Vision increments B–D; ADR-0018 §5.)
+No mutation through `sparql_query` (writes are explicit, opt-in tools only —
+ADR-0024); no bridge-side SHACL or dry-run validation; no MCP resources/prompts;
+no multi-FDP or Index-level operations; no external dereferencing; no
+capability-profile schema authoring; no access-request drafting. (Vision
+increments B–D; ADR-0018 §5 as amended by ADR-0024.)
 
 ## 9. Conformance
 
@@ -802,6 +1019,21 @@ contract itself never depends on them.
   API-key path, else JWT). The bridge forwards whatever bearer the client sent,
   verbatim, and does not parse it.
 
+- **Write surface.** Full LDP: `POST` to a container honours `Slug` and
+  answers `201` + `Location` + `ETag` (`409` on a taken slug, `405` on a
+  non-container); `PUT`/`PATCH`/`DELETE` require `If-Match` (`428` missing,
+  `412` stale); `PATCH` accepts only `application/sparql-update` (`415` +
+  `Accept-Patch` otherwise); SHACL failures are `422` with
+  `{code: "fdp.schema_violation", details: {shape, violations[]}}`, which the
+  bridge relays as `validation_failed`. New LDP-created records start `DRAFT`.
+- **State transitions.** `POST {base}/fdp-api/{record path}/state` with
+  `{"to": "PUBLISHED"}` → `{record, from_state, to_state}`; `409` on a
+  disallowed transition. FDPneo advertises
+  `Link: <{record}/state>; rel="…#hasStateTransition"` but that URL does **not**
+  currently resolve (gap G-08), so the bridge falls back to the `/fdp-api/`
+  convention (G-09) after trying the advertised link. The served record carries
+  `fdp:metadataState` and informational `fdp:allowedStateTransition` literals.
+
 ### Java reference implementation
 
 Divergences that drive the required/optional split and `fdp-api-gaps.md`:
@@ -810,7 +1042,11 @@ Divergences that drive the required/optional split and `fdp-api-gaps.md`:
   `search-api`). This is the canonical optional-tool case.
 - **Containment-only LDP with no PATCH** (a hand-rolled REST CRUD API rather than
   full LDP). Content-negotiated record `GET` is the common ground the required
-  tools rely on; PATCH/write semantics are irrelevant to this read-only surface.
+  tools rely on. For the write extension: `update_record` in `patch` mode
+  degrades to `unsupported` (`ldp_patch`); publication state is changed under
+  `…/meta/state` with a different request shape, which the bridge does not
+  attempt — `set_record_state` degrades to `unsupported` (`state_transition`)
+  unless the RI advertises a `hasStateTransition` link (G-09).
 - **Shape-discovery mechanics differ** — resolving a kind to its shape is
   under-specified across implementations; where the bridge cannot resolve a
   kind's shape, `get_schema` degrades to `unsupported` (capability `shapes`).
@@ -823,6 +1059,14 @@ implementations are written).
 
 ## 12. Changelog
 
+- **1.1.0-draft** (task 5.1, ADR-0024) — opt-in **write extension**: four tools
+  (`create_record`, `update_record`, `delete_record`, `set_record_state`,
+  §5.9–§5.12); `etag` on the Record object (§3.6); error codes
+  `precondition_failed`, `conflict`, `validation_failed`,
+  `unsupported_media_type`, `authentication_required` (§3.4); capabilities
+  `ldp_patch`, `state_transition` (§3.5); write safety rules (§6). Backward
+  compatible (MINOR): the read surface is unchanged and the write tools are
+  absent unless enabled.
 - **1.0.0-draft** (task 1.1) — initial contract: eight read-only tools, common
   envelopes (result/page/error/unsupported), Record object, pagination, JSON-LD
   framing rules, required/optional split, versioning policy.

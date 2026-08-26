@@ -7,7 +7,7 @@ the project context and conventions so each session starts informed.
 
 `fdp-mcp` — a standalone MCP (Model Context Protocol) sidecar that exposes the
 metadata of **any spec-compliant FAIR Data Point** to AI agents through a
-read-only tool surface. It is the reference implementation of the tool
+read-only tool surface (plus an opt-in write extension, ADR-0024). It is the reference implementation of the tool
 contract in `docs/mcp-tool-surface.md`, and the first increment of the agent
 consumption programme.
 
@@ -39,8 +39,13 @@ cycle) and must never assume it is talking to FDPneo specifically.
   or logged.
 - **Strict egress allowlist.** Outbound HTTP goes to `FDP_BASE_URL` and
   nowhere else. No dereferencing of arbitrary IRIs from metadata.
-- **Read-only.** No mutation tools in v1. No SPARQL update forms — reject
-  before sending.
+- **Read-only by default.** The four write tools (`create_record`,
+  `update_record`, `delete_record`, `set_record_state`; ADR-0024) exist only
+  behind `FDP_MCP_ENABLE_WRITE=true` and refuse anonymous sessions before any
+  network call. They forward the session credential verbatim and the FDP alone
+  decides — still no authorization logic in the bridge. `sparql_query` never
+  carries an update form — reject before sending; PATCH updates are validated
+  client-side (no `LOAD`/`SERVICE`, no off-origin graphs).
 - **Thin adapter.** Tool handlers translate, paginate, and shape results; they
   contain no business logic and no caching of record content beyond
   per-session memoization.

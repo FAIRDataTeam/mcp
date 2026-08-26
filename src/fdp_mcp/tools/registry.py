@@ -16,7 +16,7 @@ from mcp.server.fastmcp import Context, FastMCP
 
 from fdp_mcp.config import FdpMcpSettings
 from fdp_mcp.fdp.client import FdpClient
-from fdp_mcp.fdp.errors import FdpError
+from fdp_mcp.fdp.errors import AuthenticationRequiredError, FdpError
 from fdp_mcp.session import SessionContext, session_context_from_scope
 from fdp_mcp.shaping import result_from_error
 from fdp_mcp.tools import (
@@ -52,9 +52,28 @@ def _session(ctx: Context[Any, Any, Any], settings: FdpMcpSettings) -> SessionCo
 
 
 async def _run(
-    tool: str, settings: FdpMcpSettings, ctx: Context[Any, Any, Any], handler: Handler
+    tool: str,
+    settings: FdpMcpSettings,
+    ctx: Context[Any, Any, Any],
+    handler: Handler,
+    *,
+    require_credential: bool = False,
 ) -> dict[str, Any]:
+    """Resolve the session, open a per-call client, run ``handler``, map errors.
+
+    ``require_credential`` (write tools) refuses an anonymous session *before*
+    the client is even constructed — a fail-fast, not an authorization check:
+    the FDP is the sole decision point for every forwarded call (ADR-0024).
+    """
     session = _session(ctx, settings)
+    if require_credential and session.credential is None:
+        return result_from_error(
+            tool,
+            AuthenticationRequiredError(
+                f"{tool} needs an FDP credential: send it as the MCP session's bearer token "
+                "(stdio sessions are always anonymous)"
+            ),
+        )
     try:
         async with FdpClient(settings, credential=session.credential) as client:
             return await handler(client)

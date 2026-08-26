@@ -18,8 +18,9 @@ import json
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-from rdflib import Graph
-from rdflib.plugins.sparql.algebra import translateQuery
+import httpx
+from rdflib import Graph, URIRef
+from rdflib.plugins.sparql.algebra import translateQuery, translateUpdate
 from rdflib.plugins.sparql.parser import parseQuery, parseUpdate
 
 from fdp_mcp.fdp.client import FdpClient
@@ -113,6 +114,91 @@ def classify_query(query: str) -> QueryForm:
     if form is None:  # pragma: no cover - the four read forms are exhaustive
         raise InvalidQueryError(f"unsupported query form: {algebra.name}")
     return form
+
+
+# Update operations a record-level PATCH may carry: edits to the record's own
+# triples. Graph-management verbs (CREATE/DROP/CLEAR/ADD/MOVE/COPY) and LOAD are
+# not "edit this record" and are rejected; LOAD in particular would make the FDP
+# fetch an arbitrary URL on the bridge's behalf (strict egress by proxy).
+_ALLOWED_UPDATE_OPS = frozenset({"InsertData", "DeleteData", "DeleteWhere", "Modify"})
+
+
+def _graph_names(op: object) -> list[URIRef]:
+    """Named graphs an update operation addresses: quad keys, WITH, USING, GRAPH patterns."""
+    found: list[URIRef] = []
+    if not isinstance(op, dict):
+        return found
+    mapping = cast("dict[str, object]", op)
+    if getattr(mapping, "name", None) == "Graph":  # GRAPH <iri> { ... } pattern
+        term = mapping.get("term")
+        if isinstance(term, URIRef):
+            found.append(term)
+    quads = mapping.get("quads")
+    if isinstance(quads, dict):
+        found.extend(k for k in cast("dict[object, object]", quads) if isinstance(k, URIRef))
+    with_clause = mapping.get("withClause")
+    if isinstance(with_clause, URIRef):
+        found.append(with_clause)
+    using = mapping.get("using")
+    if isinstance(using, (list, tuple)):
+        for clause in cast("list[object] | tuple[object, ...]", using):
+            if isinstance(clause, dict):
+                clause_map = cast("dict[str, object]", clause)
+                for key in ("default", "named"):
+                    value = clause_map.get(key)
+                    if isinstance(value, URIRef):
+                        found.append(value)
+    for key, value in mapping.items():
+        if key in ("quads", "using", "withClause"):
+            continue
+        if isinstance(value, dict):
+            found.extend(_graph_names(cast("dict[str, object]", value)))
+        elif isinstance(value, (list, tuple)):
+            for item in cast("list[object] | tuple[object, ...]", value):
+                found.extend(_graph_names(item))
+    return found
+
+
+def _same_origin(a: httpx.URL, b: httpx.URL) -> bool:
+    def norm(u: httpx.URL) -> tuple[str, str, int]:
+        return (u.scheme, u.host, u.port or (443 if u.scheme == "https" else 80))
+
+    return norm(a) == norm(b)
+
+
+def classify_update(update: str, *, origin: str) -> list[str]:
+    """Validate a SPARQL *update* for use as a record PATCH, before any network call.
+
+    Returns the operation names (e.g. ``["Modify"]``). Raises
+    ``InvalidQueryError`` when the text is not a valid update, contains a
+    read-query form, uses a disallowed operation (``LOAD``, ``CLEAR``, ``DROP``,
+    ``CREATE``, ``ADD``, ``MOVE``, ``COPY``), contains ``SERVICE``, or names a
+    graph outside the FDP ``origin`` (``scheme://host[:port]``).
+    """
+    try:
+        parsed = parseUpdate(update)
+    except Exception as exc:
+        raise InvalidQueryError(f"not a valid SPARQL update: {exc}") from exc
+    try:
+        operations = translateUpdate(parsed).algebra
+    except Exception as exc:
+        raise InvalidQueryError(f"could not analyse SPARQL update: {exc}") from exc
+    if not operations:
+        raise InvalidQueryError("SPARQL update contains no operations")
+
+    allowed_origin = httpx.URL(origin)
+    names: list[str] = []
+    for op in operations:
+        name = str(op.name)
+        if name not in _ALLOWED_UPDATE_OPS:
+            raise InvalidQueryError(f"SPARQL update operation {name.upper()} is not permitted")
+        if _contains_service(op):
+            raise InvalidQueryError("SERVICE (federation) clauses are not permitted")
+        for graph_iri in _graph_names(op):
+            if not _same_origin(httpx.URL(str(graph_iri)), allowed_origin):
+                raise InvalidQueryError(f"graph {graph_iri} is outside the FDP origin {origin}")
+        names.append(name)
+    return names
 
 
 async def run_query(client: FdpClient, endpoint: str, query: str) -> SparqlResult:
