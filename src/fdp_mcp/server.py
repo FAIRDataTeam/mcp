@@ -43,6 +43,7 @@ from fdp_mcp.session import (
     session_context_from_scope,
 )
 from fdp_mcp.tools.registry import register_read_tools
+from fdp_mcp.tools.write_registry import register_write_tools
 
 # Re-exported for callers/tests that resolve it from the server module.
 __all__ = ["build_server", "create_app", "main", "run", "session_context_from_scope"]
@@ -57,6 +58,13 @@ SERVER_INSTRUCTIONS = (
     "Read-only access to the metadata of a FAIR Data Point (FDP): its records, "
     "schemas, licenses, and access conditions. Cite results by IRI; the bridge "
     "never invents holdings and adds no authorization of its own."
+)
+SERVER_INSTRUCTIONS_READ_WRITE = (
+    "Access to the metadata of a FAIR Data Point (FDP): read its records, "
+    "schemas, licenses, and access conditions, and — with a forwarded FDP "
+    "credential — create, update, delete, and publish records. Cite results by "
+    "IRI; the bridge never invents holdings and adds no authorization of its "
+    "own: the FDP decides every write. Read before you write (if_match = etag)."
 )
 # The MCP endpoint path on the streamable-HTTP transport.
 STREAMABLE_HTTP_PATH = "/mcp"
@@ -74,11 +82,14 @@ _FASTMCP_LEVEL: dict[LogLevel, Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRI
 def build_server(settings: FdpMcpSettings) -> FastMCP:
     """Construct the FastMCP server (transport-agnostic).
 
-    Registers the liveness route; tools are registered in Phase 2.
+    Registers the liveness route and the read tools; the write tools only when
+    ``settings.enable_write`` is set (ADR-0024).
     """
     server = FastMCP(
         name=SERVER_NAME,
-        instructions=SERVER_INSTRUCTIONS,
+        instructions=SERVER_INSTRUCTIONS_READ_WRITE
+        if settings.enable_write
+        else SERVER_INSTRUCTIONS,
         host=settings.host,
         port=settings.port,
         log_level=_FASTMCP_LEVEL[settings.log_level],
@@ -95,6 +106,8 @@ def build_server(settings: FdpMcpSettings) -> FastMCP:
     # referenced local — the endpoint is public and unauthenticated by design.
     server.custom_route("/healthz", methods=["GET"])(healthz)
     register_read_tools(server, settings)
+    if settings.enable_write:
+        register_write_tools(server, settings)
     return server
 
 
@@ -210,7 +223,13 @@ def run(settings: FdpMcpSettings | None = None) -> None:
 
 def _run_stdio(settings: FdpMcpSettings) -> None:
     server = build_server(settings)
-    logger.info("starting", transport="stdio", fdp=settings.fdp_origin)
+    if settings.enable_write:
+        # stdio carries no headers, so no credential can be forwarded: every
+        # write tool call will be refused as authentication_required.
+        logger.warning("write_enabled_on_stdio_is_inert", transport="stdio")
+    logger.info(
+        "starting", transport="stdio", fdp=settings.fdp_origin, write_enabled=settings.enable_write
+    )
     anyio.run(server.run_stdio_async)
 
 
@@ -224,6 +243,7 @@ def _run_streamable_http(settings: FdpMcpSettings) -> None:
         host=settings.host,
         port=settings.port,
         fdp=settings.fdp_origin,
+        write_enabled=settings.enable_write,
     )
     uvicorn.run(app, host=settings.host, port=settings.port, log_level=settings.log_level)
 

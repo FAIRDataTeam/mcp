@@ -21,14 +21,19 @@ from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF
 
 from fdp_mcp.fdp.errors import (
+    AuthenticationRequiredError,
     EgressError,
+    FdpConflictError,
     FdpError,
     FdpNotFoundError,
+    FdpPreconditionError,
     FdpResponseTooLargeError,
     FdpTimeoutError,
     FdpUnauthorizedError,
     FdpUnsupportedError,
+    FdpUnsupportedMediaTypeError,
     FdpUpstreamError,
+    FdpValidationError,
     InvalidArgumentError,
     InvalidQueryError,
     ReadOnlyError,
@@ -196,6 +201,7 @@ def record_object(
         "types": resource.type_iris,
         "title": resource.title,
         "kind": kind,
+        "etag": resource.etag,
         "links": _links(resource),
     }
     if fmt == "jsonld":
@@ -251,6 +257,12 @@ _ERROR_CODES: dict[type[FdpError], str] = {
     FdpTimeoutError: "upstream_timeout",
     FdpResponseTooLargeError: "too_large",
     FdpUpstreamError: "upstream_error",
+    # Write surface (contract 1.1, ADR-0024).
+    FdpPreconditionError: "precondition_failed",
+    FdpConflictError: "conflict",
+    FdpValidationError: "validation_failed",
+    FdpUnsupportedMediaTypeError: "unsupported_media_type",
+    AuthenticationRequiredError: "authentication_required",
 }
 
 
@@ -279,4 +291,4 @@ def result_from_error(tool: str, exc: FdpError) -> dict[str, Any]:
     if isinstance(exc, FdpUnsupportedError):
         return unsupported_result(tool, exc)
     code = _ERROR_CODES.get(type(exc), "upstream_error")
-    return error_result(code, str(exc) or code)
+    return error_result(code, str(exc) or code, exc.details)

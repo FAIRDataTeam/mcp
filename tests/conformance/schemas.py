@@ -25,6 +25,7 @@ RECORD: dict[str, Any] = {
         "kind": _STRING_OR_NULL,
         "metadata": {"type": ["object", "string"]},
         "metadata_media_type": _STRING,
+        "etag": _STRING_OR_NULL,
         "links": {"type": "object"},
     },
     "additionalProperties": True,
@@ -51,6 +52,12 @@ ERROR: dict[str, Any] = {
                         "upstream_timeout",
                         "too_large",
                         "unsupported",
+                        # Write surface (contract 1.1, ADR-0024).
+                        "precondition_failed",
+                        "conflict",
+                        "validation_failed",
+                        "unsupported_media_type",
+                        "authentication_required",
                     ]
                 },
                 "message": _STRING,
@@ -220,3 +227,51 @@ LIST_RECORDS = page(RECORD)
 SEARCH = page(RECORD)
 # §5.8 list_data_services — page of Record objects that carry a `service` block.
 LIST_DATA_SERVICES = page(RECORD)
+
+
+# §5.9 create_record.
+CREATE_RECORD: dict[str, Any] = {
+    "type": "object",
+    "required": ["iri", "etag", "state", "record"],
+    "additionalProperties": False,
+    "properties": {
+        "iri": _STRING,
+        "etag": _STRING_OR_NULL,
+        "state": _STRING_OR_NULL,
+        "record": RECORD,
+    },
+}
+
+# §5.10 update_record.
+UPDATE_RECORD: dict[str, Any] = {
+    "type": "object",
+    "required": ["iri", "etag", "mode", "record"],
+    "additionalProperties": False,
+    "properties": {
+        "iri": _STRING,
+        "etag": _STRING_OR_NULL,
+        "mode": {"enum": ["replace", "patch"]},
+        "record": RECORD,
+    },
+}
+
+# §5.11 delete_record.
+DELETE_RECORD: dict[str, Any] = {
+    "type": "object",
+    "required": ["iri", "deleted"],
+    "additionalProperties": False,
+    "properties": {"iri": _STRING, "deleted": {"const": True}},
+}
+
+# §5.12 set_record_state.
+SET_RECORD_STATE: dict[str, Any] = {
+    "type": "object",
+    "required": ["iri", "from_state", "to_state", "record"],
+    "additionalProperties": False,
+    "properties": {
+        "iri": _STRING,
+        "from_state": _STRING_OR_NULL,
+        "to_state": {"enum": ["DRAFT", "PUBLISHED", "ARCHIVED"]},
+        "record": {"oneOf": [RECORD, {"type": "null"}]},
+    },
+}

@@ -40,7 +40,8 @@ The bridge serves the **streamable-HTTP** MCP transport at
 
 Default network posture: the container binds `0.0.0.0` inside the container and
 speaks **only** to `FDP_BASE_URL`'s origin — it never dereferences any other
-host. It is read-only and adds no authorization of its own.
+host. It is read-only by default (writes are an explicit opt-in) and adds no
+authorization of its own.
 
 ### From source (for development)
 
@@ -152,6 +153,26 @@ bridge neither widens nor narrows it.
 Every record-shaped result carries its `iri`, so the agent cites holdings
 instead of inventing them. A tool the target FDP can't back returns a structured
 `unsupported` result (with an `alternative`), never a fabricated answer.
+
+### Writing metadata (opt-in)
+
+Start the bridge with `FDP_MCP_ENABLE_WRITE=true` and connect over
+streamable-HTTP with your FDP API key as the bearer (§3) — write tools refuse
+anonymous sessions before any network call, and `stdio` is always anonymous.
+Then:
+
+| Tool | Ask it… |
+|---|---|
+| `get_schema` | "What must a dataset here contain?" — read the shape first. |
+| `create_record` | "Add this dataset to catalog X." *(`body` in Turtle with `<>` as the subject; the FDP validates and answers `validation_failed` with the violations if it does not conform)* |
+| `get_record` | "Show it back to me." — note the `etag`. |
+| `update_record` | "Fix the title." *(`if_match` = that `etag`; `body` to replace, or `patch` with a SPARQL update)* |
+| `set_record_state` | "Publish it." *(`to: "PUBLISHED"`; the FDP decides what you may do)* |
+| `delete_record` | "Remove it." *(`if_match` again)* |
+
+A stale `if_match` is `precondition_failed` — re-read and retry. The bridge
+never decides permissions: a `401`/`403` from the FDP comes back as
+`upstream_unauthorized`.
 
 ---
 

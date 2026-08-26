@@ -9,8 +9,8 @@ it points to in the server repo —
 [ADR-0018](../server/docs/adr/0018-agent-consumption-mcp-server.md) and the
 [Agent Consumption Vision](../server/docs/architecture/agent-consumption-vision.md).
 The ground rules (public surface only, no authorization logic, no credential
-storage, strict egress, read-only) are decided there; do not improvise around
-them.
+storage, strict egress, read-only by default — writes only via the opt-in
+extension of ADR-0024) are decided there; do not improvise around them.
 
 Status markers: `[x]` completed, `[~]` partially done, `[ ]` not started.
 
@@ -227,6 +227,61 @@ closure, discovery memoization, truncation flags, G-07 docs, PR #2).
   reconciled to v0.6.0 (matches our gap report). Both directions link, per the
   API-honesty rule.
 
+## Phase 5 — Opt-in write surface (ADR-0024, contract 1.1.0-draft, v0.3.0)
+
+Governance first: read-only was a binding ADR-0018 §5 decision, so this phase
+starts with ADR-0024 in the server repo (superseding only the "no mutation
+tools" clause) and the contract bump, then the code. Every other ground rule is
+unchanged: public surface only, no authorization logic in the bridge, strict
+egress, thin adapter, no credential storage/logging.
+
+### 5.1 [x] ADR-0024 + contract 1.1.0-draft
+
+- `../server/docs/adr/0024-mcp-opt-in-write-tools.md`; supersession note on
+  ADR-0018; ADR index row.
+- `docs/mcp-tool-surface.md`: §5.9 `create_record`, §5.10 `update_record`,
+  §5.11 `delete_record`, §5.12 `set_record_state`; `etag` on the Record
+  object; error codes `precondition_failed`, `conflict`, `validation_failed`,
+  `unsupported_media_type`, `authentication_required`; capabilities
+  `ldp_patch`, `state_transition`; write safety rules in §6; §11 notes for
+  FDPneo and the Java RI.
+- Gap report: **G-08** (advertised `hasStateTransition` link does not
+  resolve), **G-09** (state-transition endpoint not standardised), **G-10**
+  (FDPneo OpenAPI omits PATCH, `/state`, `securitySchemes`).
+
+### 5.2 [x] Client layer
+
+- `FdpClient.put/patch/delete` (same egress hook, timeout, size cap).
+- `fdp/write.py`: `validate_rdf_body` (parse + single primary subject, body
+  sent verbatim), `create_member`, `replace_resource`, `patch_resource`
+  (405/415 → `unsupported ldp_patch`), `delete_resource`, `transition_state`
+  (advertised link → FDPneo convention → `unsupported state_transition`).
+- `sparql.classify_update`: only `INSERT DATA`/`DELETE DATA`/`DELETE WHERE`/
+  `DELETE…INSERT…WHERE`; `LOAD`, `SERVICE`, graph-management verbs, and
+  off-origin graph names rejected pre-network.
+- `errors.raise_for_status` maps 409/412/415/422/428 to typed errors carrying
+  the FDP's JSON `message`/`details`; `LdpResource.etag`.
+
+### 5.3 [x] Tools, gating, instructions
+
+- `FDP_MCP_ENABLE_WRITE` (default false): write tools not registered at all.
+- `tools/{create,update,delete}_record.py`, `tools/set_record_state.py`,
+  `tools/write_registry.py`; `_run(require_credential=True)` answers
+  `authentication_required` before constructing the client.
+- Server instructions switch to the read-write text when enabled; a warning is
+  logged for `stdio` + write (always anonymous → inert).
+
+### 5.4 [x] Tests, docs, release
+
+- Unit: validators, `classify_update` allow/deny matrix, verbs over a stateful
+  mocked FDPneo write surface (ETag/412/428/409/422/415), transition ladder,
+  tool handlers, flag gating, anonymous refusal with zero outbound requests.
+- Conformance: schemas for the four results, `etag`, the five codes.
+- Integration: authenticated in-memory MCP session walks create → get(etag) →
+  stale-update(412) → update → publish → delete; bearer forwarded on every
+  write and never logged.
+- README, quickstart ("Writing metadata"), CHANGELOG `0.3.0`, version bump.
+
 ### Later / strategic (own ADR where noted)
 
 - [ ] MCP **resources + prompts** — expose records as resources; a guided
@@ -244,8 +299,8 @@ closure, discovery memoization, truncation flags, G-07 docs, PR #2).
 
 ---
 
-**Out of scope for v1 (tracked in Phase 4):** mutation tools (permanently out —
-read-only by design); MCP resources/prompts (4.x later); multi-FDP / Index-level
+**Out of scope:** mutation via `sparql_query` (writes are explicit, opt-in tools
+— Phase 5, ADR-0024); bridge-side SHACL/dry-run validation; MCP resources/prompts (4.x later); multi-FDP / Index-level
 operation (increment C — own ADR); capability-profile schema package
 (increment B); access-request drafting (increment D); MCP OAuth flow (open
 question 1).

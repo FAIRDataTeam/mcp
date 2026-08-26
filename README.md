@@ -16,9 +16,11 @@ docker run --rm -p 8080:8000 \
   FDP surface (LDP, `/sparql`, the search API, SHACL shapes) — so it works
   against FDPneo **and** the Java reference implementation with no server-side
   changes.
-- **Read-only and safe.** No mutation tools; strict egress (talks only to the
-  target FDP); anonymous by default, or it forwards your FDP API key per session
-  (never stored, never logged).
+- **Read-only by default, and safe.** Strict egress (talks only to the target
+  FDP); anonymous by default, or it forwards your FDP API key per session (never
+  stored, never logged). Four **write tools** (create/update/delete/publish) are
+  available only when the operator sets `FDP_MCP_ENABLE_WRITE=true`; they need
+  a forwarded credential and every write is decided by the FDP, not the bridge.
 - **Honest.** A capability the target FDP lacks degrades to a structured
   `unsupported` result — never a fabricated answer. Every record result carries
   its IRI so the agent cites holdings instead of inventing them.
@@ -41,7 +43,7 @@ docker run --rm -p 8080:8000 \
 
 ## What it can do
 
-Eight read-only tools over one FDP:
+Eight read tools over one FDP (plus four opt-in write tools, below):
 
 | Tool | Purpose | Notes |
 |---|---|---|
@@ -53,6 +55,20 @@ Eight read-only tools over one FDP:
 | `sparql_query` | Read-only SPARQL over the public endpoint. | Update/`SERVICE` forms refused **before** any network call. Optional (`sparql`). |
 | `get_access_conditions` | "May I use this, under what licence, and whom do I contact?" — resolves `dct:license`, ODRL `dct:rights`, `dct:accessRights`, and contact points. | Reports `determinable: false` honestly when the metadata is silent. |
 | `list_data_services` | Enumerate DCAT `DataService` records with their endpoints and `dct:conformsTo` claims. | Discovery only; the seed of the capability profile. |
+
+**Writing (opt-in).** With `FDP_MCP_ENABLE_WRITE=true` the bridge also registers:
+
+| Tool | Purpose | Notes |
+|---|---|---|
+| `create_record` | Create a record in a container (LDP `POST`). | Body parsed client-side (one primary subject), sent verbatim; the FDP runs SHACL → `validation_failed` with the violations. |
+| `update_record` | Replace (`PUT`) or patch (SPARQL-update `PATCH`) a record. | `if_match` = the `etag` from `get_record` is mandatory; stale → `precondition_failed`. PATCH is an optional capability (`ldp_patch`). |
+| `delete_record` | Delete a record (LDP `DELETE`). | `if_match` mandatory. |
+| `set_record_state` | `DRAFT` → `PUBLISHED` → `ARCHIVED` transitions. | Follows the FDP's advertised affordance; optional capability (`state_transition`). |
+
+Write tools refuse an anonymous session before any network call
+(`authentication_required`) — a write cannot succeed without a credential for
+the FDP to evaluate. Contract: [§5.9–§5.12](docs/mcp-tool-surface.md#59-create_record);
+decision: ADR-0024 (server repo).
 
 **Endpoint discovery.** When the FDP advertises its service endpoints in the
 root record (VoID `void:sparqlEndpoint`, DCAT `dcat:DataService`), the bridge
@@ -141,6 +157,7 @@ are namespaced under `FDP_MCP_`.
 | `FDP_MCP_FDP_MAX_RESPONSE_BYTES` | `10485760` | Response-size cap (10 MiB); oversized responses are aborted. |
 | `FDP_MCP_FDP_SPARQL_PATH` | `/fdp-api/sparql` | SPARQL endpoint path override. When left default, an advertised endpoint is preferred. |
 | `FDP_MCP_FDP_SEARCH_PATH` | `/fdp-api/search` | Search endpoint path override. Same discovery behaviour. |
+| `FDP_MCP_ENABLE_WRITE` | `false` | Register the four write tools. Off = strictly read-only (the tools do not exist). Inert on `stdio` (no credential can be forwarded). |
 | `FDP_MCP_MAX_CONCURRENT_SESSIONS` | `100` | Cap on concurrent sessions (streamable-HTTP). |
 | `FDP_MCP_SESSION_IDLE_TIMEOUT_SECONDS` | `300` | Drop a session after this idle period. |
 | `FDP_MCP_SESSION_LIFETIME_TIMEOUT_SECONDS` | `3600` | Absolute session lifetime ceiling. |
@@ -212,8 +229,11 @@ Per-client config snippets, MCP Inspector usage, and the demo script are in
 - **Strict egress** — outbound HTTP is pinned to `FDP_BASE_URL`'s origin
   (redirects included); no arbitrary IRIs are dereferenced, and SPARQL `SERVICE`
   (federation) is refused.
-- **Read-only** — no mutation tools; SPARQL update forms are rejected
-  client-side before any network call.
+- **Read-only by default** — write tools exist only behind
+  `FDP_MCP_ENABLE_WRITE=true`, refuse anonymous sessions before any network
+  call, require `if_match` from the caller, validate bodies/updates
+  client-side (no `LOAD`/`SERVICE`, no off-origin graphs), and forward every
+  write for the FDP to decide. `sparql_query` always rejects update forms.
 - **Credentials** — anonymous by default; a forwarded key is memory-only,
   session-scoped, never persisted, and redacted from all logs.
 - **Bounded** — per-request timeouts, a response-size cap, and a
@@ -254,8 +274,9 @@ ground rules for contributors are in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
-Released — the full read-only tool surface (eight tools), root-metadata endpoint
-discovery, and unit/conformance/integration suites are in place and validated
+Released — the full read tool surface (eight tools), the opt-in write extension
+(four tools, ADR-0024), root-metadata endpoint discovery, and
+unit/conformance/integration suites are in place; the read surface is validated
 against a live FDPneo. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License

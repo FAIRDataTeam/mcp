@@ -102,6 +102,15 @@ class FdpMcpSettings(BaseSettings):
     fdp_sparql_path: str = _DEFAULT_SPARQL_PATH
     fdp_search_path: str = _DEFAULT_SEARCH_PATH
 
+    # --- Write surface (opt-in, ADR-0024) -----------------------------------
+    # When false (the default) the bridge is read-only: the write tools
+    # (create_record, update_record, delete_record, set_record_state) are not
+    # registered at all. When true they are, and each call forwards the
+    # session's credential for the FDP to decide on; an anonymous session is
+    # refused before any network call because a write cannot succeed without a
+    # credential. Still no authorization logic in the bridge.
+    enable_write: bool = False
+
     @property
     def fdp_origin(self) -> str:
         """The FDP's ``scheme://host[:port]`` origin — the egress allow-list.

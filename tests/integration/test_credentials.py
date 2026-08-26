@@ -18,7 +18,7 @@ from fdp_mcp.config import FdpMcpSettings
 from fdp_mcp.fdp.client import FdpClient
 from fdp_mcp.fdp.errors import FdpNotFoundError
 from fdp_mcp.log import configure_logging, get_logger
-from fdp_mcp.tools import get_record
+from fdp_mcp.tools import delete_record, get_record
 
 BASE = "https://fdp.example.org"
 SECRET = "fdpk_super-secret-key"
@@ -73,3 +73,20 @@ async def test_forwarded_token_never_appears_in_logs(
     out = capsys.readouterr().out
     assert SECRET not in out
     assert "redacted" in out
+
+
+async def test_write_forwards_bearer_and_never_logs_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_logging("debug")
+    logger = get_logger("test.credentials.write")
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.delete(RESTRICTED).mock(return_value=httpx.Response(204))
+        async with FdpClient(_settings(), credential=SecretStr(SECRET)) as authed:
+            await delete_record.handle(authed, iri=RESTRICTED, if_match='"v1"')
+            logger.info("handled_write", authorization=f"Bearer {SECRET}")
+    sent = route.calls.last.request
+    assert sent.headers["authorization"] == f"Bearer {SECRET}"
+    assert sent.headers["if-match"] == '"v1"'
+    out = capsys.readouterr().out
+    assert SECRET not in out
