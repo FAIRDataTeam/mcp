@@ -5,6 +5,18 @@ All notable changes to `fdp-mcp` are documented here. The format follows
 [semantic versioning](https://semver.org/). The **tool-surface contract** is
 versioned independently — see `docs/mcp-tool-surface.md` §10.
 
+## [0.3.1] — 2026-09-02
+
+### Changed
+
+- **FDP-O namespace dual-accept** (fdpneo-server 0.16 / ADR-0026). The server
+  moved its vocabulary from the unregistered `https://w3id.org/fdp/o#` to the
+  published FDP Ontology namespace `https://w3id.org/fdp/fdp-o#`. The sidecar
+  now reads `metadataState`/`allowedStateTransition` and matches the
+  `hasStateTransition` Link relation in both namespaces, so it works against
+  pre- and post-0.16 servers. JSON-LD compaction gains the new `fdp:` prefix
+  (the legacy namespace compacts as `fdp-legacy:`).
+
 ## [0.3.0] — 2026-08-26
 
 ### Added

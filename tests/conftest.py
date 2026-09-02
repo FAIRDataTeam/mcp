@@ -38,7 +38,7 @@ _DATASET_LINK = (
 _ROOT_TTL = f"""
 @prefix ldp: <http://www.w3.org/ns/ldp#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix fdp: <https://w3id.org/fdp/o#> .
+@prefix fdp: <https://w3id.org/fdp/fdp-o#> .
 <{BASE}> a fdp:FAIRDataPoint, ldp:DirectContainer ;
     dcterms:title "Example FDP" ;
     dcterms:publisher <https://example.org/org/1> ;
@@ -118,14 +118,14 @@ NEW_DATASET = f"{BASE}/dataset/2"
 NEW_DATASET_TTL = f"""
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix fdp: <https://w3id.org/fdp/o#> .
+@prefix fdp: <https://w3id.org/fdp/fdp-o#> .
 <{NEW_DATASET}> a dcat:Dataset ;
     dcterms:title "Dataset Two" ;
     dcterms:isPartOf <{BASE}/catalog/1> ;
     fdp:metadataState "DRAFT" ;
     fdp:allowedStateTransition "PUBLISHED" .
 """
-_STATE_LINK = f'<{NEW_DATASET}/state>; rel="https://w3id.org/fdp/o#hasStateTransition"'
+_STATE_LINK = f'<{NEW_DATASET}/state>; rel="https://w3id.org/fdp/fdp-o#hasStateTransition"'
 
 
 class WriteSurface:

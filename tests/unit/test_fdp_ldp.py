@@ -29,14 +29,14 @@ _LDP_LINK = (
 ROOT_TTL = """
 @prefix ldp: <http://www.w3.org/ns/ldp#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix fdp: <https://w3id.org/fdp/o#> .
+@prefix fdp: <https://w3id.org/fdp/fdp-o#> .
 <https://fdp.example.org> a fdp:FAIRDataPoint, ldp:DirectContainer ;
     dcterms:title "Example FDP" ;
     ldp:contains <https://fdp.example.org/catalog/1> .
 """
 ROOT_LINK = (
     f"{_LDP_LINK}, "
-    '<https://w3id.org/fdp/o#FAIRDataPoint>; rel="type", '
+    '<https://w3id.org/fdp/fdp-o#FAIRDataPoint>; rel="type", '
     '<https://fdp.example.org/schema/repository>; rel="http://www.w3.org/ns/ldp#constrainedBy", '
     '<https://fdp.example.org>; rel="cite-as"'
 )
@@ -101,7 +101,7 @@ async def test_fetch_root_parses_graph_links_and_containment() -> None:
             root = await fetch_resource(client, client.base_url)
 
     assert root.iri == "https://fdp.example.org"
-    assert "https://w3id.org/fdp/o#FAIRDataPoint" in root.type_iris
+    assert "https://w3id.org/fdp/fdp-o#FAIRDataPoint" in root.type_iris
     assert root.is_container is True
     assert root.title == "Example FDP"
     assert root.constrained_by == "https://fdp.example.org/schema/repository"
@@ -274,7 +274,7 @@ async def test_discover_root_enumerates_kinds_without_hardcoding() -> None:
     slugs = {kind.slug for kind in discovery.kinds}
     assert slugs == {"fair-data-point", "catalog", "dataset", "distribution", "data-service"}
     root_kind = next(k for k in discovery.kinds if k.is_root)
-    assert root_kind.type_iris == ("https://w3id.org/fdp/o#FAIRDataPoint",)
+    assert root_kind.type_iris == ("https://w3id.org/fdp/fdp-o#FAIRDataPoint",)
 
 
 async def test_discover_root_is_memoized_per_client() -> None:

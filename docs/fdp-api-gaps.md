@@ -206,7 +206,7 @@ Phase 19). Link entries both ways when triaged.
   — a link-following bridge that `POST`s to the advertised affordance gets a
   `404` from the LDP catch-all.
 - **Implementations affected:** FDPneo. `signposting.py` emits
-  `Link: <{record}/state>; rel="https://w3id.org/fdp/o#hasStateTransition"`
+  `Link: <{record}/state>; rel="https://w3id.org/fdp/fdp-o#hasStateTransition"`
   while the transition router is mounted under the reserved prefix, so the live
   endpoint is `{base}/fdp-api/{record path}/state`.
 - **Public-surface status:** the affordance is the *right* spec-honest way to

@@ -59,7 +59,10 @@ CONTEXT: dict[str, str] = {
     "vcard": "http://www.w3.org/2006/vcard/ns#",
     "prov": "http://www.w3.org/ns/prov#",
     "sh": "http://www.w3.org/ns/shacl#",
-    "fdp": "https://w3id.org/fdp/o#",
+    "fdp": "https://w3id.org/fdp/fdp-o#",
+    # Legacy namespace minted by fdpneo-server <0.16 (an unregistered typo for
+    # the FDP-O IRI above); kept so records from older servers still compact.
+    "fdp-legacy": "https://w3id.org/fdp/o#",
 }
 
 
