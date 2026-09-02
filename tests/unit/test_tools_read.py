@@ -37,7 +37,7 @@ DATASET_LINK = (
 ROOT_TTL = """
 @prefix ldp: <http://www.w3.org/ns/ldp#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix fdp: <https://w3id.org/fdp/o#> .
+@prefix fdp: <https://w3id.org/fdp/fdp-o#> .
 <https://fdp.example.org> a fdp:FAIRDataPoint, ldp:Container, ldp:DirectContainer ;
     dcterms:title "Example FDP" ;
     ldp:contains <https://fdp.example.org/catalog/1> .

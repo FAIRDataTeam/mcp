@@ -24,9 +24,11 @@ from fdp_mcp.fdp.errors import (
 )
 from fdp_mcp.fdp.sparql import classify_update
 from fdp_mcp.fdp.write import (
+    allowed_transitions,
     create_member,
     delete_resource,
     patch_resource,
+    record_state,
     replace_resource,
     transition_state,
     validate_rdf_body,
@@ -297,6 +299,24 @@ async def test_transition_state_falls_back_to_convention_when_link_404s(
 
 
 async def test_transition_state_uses_advertised_link_first() -> None:
+    link = f'<{NEW_DATASET}/state>; rel="https://w3id.org/fdp/fdp-o#hasStateTransition"'
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(NEW_DATASET).mock(
+            return_value=httpx.Response(
+                200, text=NEW_DATASET_TTL, headers={"content-type": "text/turtle", "link": link}
+            )
+        )
+        advertised = mock.post(f"{NEW_DATASET}/state").mock(
+            return_value=httpx.Response(200, json={"from_state": "DRAFT", "to_state": "PUBLISHED"})
+        )
+        conventional = mock.post(f"{BASE}/fdp-api/dataset/2/state")
+        async with FdpClient(_settings()) as client:
+            await transition_state(client, NEW_DATASET, to="PUBLISHED")
+    assert advertised.called and not conventional.called
+
+
+async def test_transition_state_uses_legacy_advertised_link() -> None:
+    # fdpneo-server <0.16 advertised the rel under the unregistered namespace.
     link = f'<{NEW_DATASET}/state>; rel="https://w3id.org/fdp/o#hasStateTransition"'
     with respx.mock(assert_all_called=False) as mock:
         mock.get(NEW_DATASET).mock(
@@ -314,7 +334,7 @@ async def test_transition_state_uses_advertised_link_first() -> None:
 
 
 async def test_transition_state_refuses_off_origin_link() -> None:
-    link = '<https://evil.example/state>; rel="https://w3id.org/fdp/o#hasStateTransition"'
+    link = '<https://evil.example/state>; rel="https://w3id.org/fdp/fdp-o#hasStateTransition"'
     with respx.mock(assert_all_called=False) as mock:
         mock.get(NEW_DATASET).mock(
             return_value=httpx.Response(
@@ -355,6 +375,27 @@ async def test_transition_state_conflict_relays_allowed_transitions(
         "current_state": "DRAFT",
         "allowed_transitions": ["PUBLISHED"],
     }
+
+
+async def test_record_state_reads_legacy_namespace() -> None:
+    # fdpneo-server <0.16 served metadataState/allowedStateTransition under the
+    # unregistered legacy namespace; both must still be read.
+    from fdp_mcp.fdp.ldp import fetch_resource
+
+    legacy_ttl = (
+        f'<{NEW_DATASET}> <https://w3id.org/fdp/o#metadataState> "DRAFT" ;\n'
+        f'  <https://w3id.org/fdp/o#allowedStateTransition> "PUBLISHED" .'
+    )
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(NEW_DATASET).mock(
+            return_value=httpx.Response(
+                200, text=legacy_ttl, headers={"content-type": "text/turtle"}
+            )
+        )
+        async with FdpClient(_settings()) as client:
+            resource = await fetch_resource(client, NEW_DATASET)
+    assert record_state(resource) == "DRAFT"
+    assert allowed_transitions(resource) == ["PUBLISHED"]
 
 
 async def test_transition_state_rejects_unknown_state() -> None:

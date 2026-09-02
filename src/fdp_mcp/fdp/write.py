@@ -41,8 +41,12 @@ from fdp_mcp.fdp.ldp import LdpResource, fetch_resource
 from fdp_mcp.fdp.rdf import MEDIA_TO_RDFLIB
 from fdp_mcp.fdp.sparql import classify_update
 
-FDP_O = Namespace("https://w3id.org/fdp/o#")
+FDP_O = Namespace("https://w3id.org/fdp/fdp-o#")
+# fdpneo-server <0.16 minted the vocabulary under this unregistered namespace
+# (a typo for the published FDP-O IRI); accept both across the transition.
+FDP_O_LEGACY = Namespace("https://w3id.org/fdp/o#")
 REL_HAS_STATE_TRANSITION = str(FDP_O.hasStateTransition)
+REL_HAS_STATE_TRANSITION_LEGACY = str(FDP_O_LEGACY.hasStateTransition)
 
 WriteMediaType = Literal[
     "text/turtle", "application/ld+json", "application/rdf+xml", "application/n-triples"
@@ -196,14 +200,23 @@ async def delete_resource(client: FdpClient, iri: str, *, if_match: str) -> None
 
 def record_state(resource: LdpResource) -> str | None:
     """The ``fdp:metadataState`` literal on the record, when the FDP serves one."""
-    obj = next(resource.graph.objects(URIRef(resource.iri), FDP_O.metadataState), None)
-    return str(obj) if obj is not None else None
+    subject = URIRef(resource.iri)
+    for predicate in (FDP_O.metadataState, FDP_O_LEGACY.metadataState):
+        obj = next(resource.graph.objects(subject, predicate), None)
+        if obj is not None:
+            return str(obj)
+    return None
 
 
 def allowed_transitions(resource: LdpResource) -> list[str]:
     """``fdp:allowedStateTransition`` hints served with the record (informational only)."""
+    subject = URIRef(resource.iri)
     return sorted(
-        str(o) for o in resource.graph.objects(URIRef(resource.iri), FDP_O.allowedStateTransition)
+        {
+            str(o)
+            for predicate in (FDP_O.allowedStateTransition, FDP_O_LEGACY.allowedStateTransition)
+            for o in resource.graph.objects(subject, predicate)
+        }
     )
 
 
@@ -241,7 +254,9 @@ async def transition_state(client: FdpClient, iri: str, *, to: str) -> StateOutc
         raise InvalidArgumentError(f"unknown state {to!r}; use one of {sorted(RECORD_STATES)}")
     resource = await fetch_resource(client, iri)
     candidates: list[str] = []
-    advertised = resource.links.first_target(REL_HAS_STATE_TRANSITION)
+    advertised = resource.links.first_target(
+        REL_HAS_STATE_TRANSITION
+    ) or resource.links.first_target(REL_HAS_STATE_TRANSITION_LEGACY)
     if advertised is not None:
         client._check_egress(httpx.URL(advertised))  # pyright: ignore[reportPrivateUsage]
         candidates.append(advertised)

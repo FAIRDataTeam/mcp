@@ -866,7 +866,7 @@ publication-state transition for a record.
 ```
 
 **Surface:** the bridge first `GET`s the record and follows its advertised
-state-transition affordance (`Link` `rel="https://w3id.org/fdp/o#hasStateTransition"`,
+state-transition affordance (`Link` `rel="https://w3id.org/fdp/fdp-o#hasStateTransition"`,
 which MUST be on the FDP origin), `POST`ing `{"to": "<state>"}` as JSON. Where
 that affordance is absent or does not resolve, an implementation MAY try a
 documented product convention ([§11](#11-reference-implementation-notes)) before
