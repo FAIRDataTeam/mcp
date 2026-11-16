@@ -5,6 +5,16 @@ All notable changes to `fdp-mcp` are documented here. The format follows
 [semantic versioning](https://semver.org/). The **tool-surface contract** is
 versioned independently — see `docs/mcp-tool-surface.md` §10.
 
+## [Unreleased]
+
+### Security
+
+- **Dependency floors raised for new advisories.** `mcp>=1.30,<2` (CVE-2026-59951,
+  CVE-2026-116684/5/6), `pyjwt>=2.15.0`, `anyio>=4.14.2`, `urllib3>=2.8.0` and
+  `certifi>=2026.10.18`. The lock now resolves mcp 1.30.0 and pyjwt 2.15.1. The
+  `mcp` SDK stays on 1.x: 2.x replaces httpx with httpx2 and is a migration of
+  its own.
+
 ## [0.3.1] — 2026-09-02
 
 ### Changed
