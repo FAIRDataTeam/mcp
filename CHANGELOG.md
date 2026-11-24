@@ -14,6 +14,11 @@ versioned independently — see `docs/mcp-tool-surface.md` §10.
   `certifi>=2026.10.18`. The lock now resolves mcp 1.30.0 and pyjwt 2.15.1. The
   `mcp` SDK stays on 1.x: 2.x replaces httpx with httpx2 and is a migration of
   its own.
+- **`validate_iri` is documented as a shape check, not an SSRF control**
+  (security audit 2026-11-23, F-03). It accepts any http(s) host; the
+  client's egress guard is what keeps tools on the FDP's origin. A test now
+  shows an internal IRI passing `validate_iri` and being refused by the
+  guard before any request is sent.
 
 ## [0.3.1] — 2026-09-02
 
