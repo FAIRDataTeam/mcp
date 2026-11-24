@@ -18,6 +18,7 @@ from fdp_mcp.fdp.client import FdpClient
 from fdp_mcp.fdp.errors import FdpError, FdpNotFoundError, FdpUnsupportedError, InvalidArgumentError
 from fdp_mcp.shaping import result_from_error
 from fdp_mcp.tools import fdp_info, get_record, get_schema, list_records
+from fdp_mcp.tools._common import validate_iri
 
 BASE = "https://fdp.example.org"
 
@@ -219,6 +220,20 @@ async def test_get_record_rejects_off_origin_iri() -> None:
         # invalid_argument in the contract envelope.
         with pytest.raises(FdpError) as exc_info:
             await get_record.handle(client, iri="https://evil.example.org/x")
+    assert result_from_error("get_record", exc_info.value)["error"]["code"] == "invalid_argument"
+
+
+async def test_internal_iri_passes_validation_but_not_the_egress_guard() -> None:
+    # validate_iri checks the shape only; the egress guard is what stops an
+    # IRI aimed at an internal host (audit 2026-11-23, F-03). Nothing is sent.
+    internal = "http://169.254.169.254/latest/meta-data/"
+    validate_iri(internal)  # accepted: an absolute http IRI
+    with respx.mock(assert_all_called=False) as mock:
+        route = mock.get(internal).mock(return_value=httpx.Response(200, text="secret"))
+        async with FdpClient(_settings()) as client:
+            with pytest.raises(FdpError) as exc_info:
+                await get_record.handle(client, iri=internal)
+    assert not route.called
     assert result_from_error("get_record", exc_info.value)["error"]["code"] == "invalid_argument"
 
 

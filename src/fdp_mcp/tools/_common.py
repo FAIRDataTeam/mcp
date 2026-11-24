@@ -33,6 +33,16 @@ def accept_for(fmt: str) -> str:
 
 
 def validate_iri(iri: str) -> None:
+    """Refuse an argument that is not an absolute http(s) IRI.
+
+    A shape check for a clearer ``invalid_argument``, **not** an SSRF defence:
+    it accepts any host, internal ones included. What keeps a tool from
+    reaching an arbitrary host is the client's egress guard
+    (``FdpClient._guard_egress``), which refuses every request, and every
+    redirect hop, outside the allowed FDP origin before it is sent. Keep that
+    guard as the control; do not rely on this function to restrict hosts
+    (security audit 2026-11-23, F-03).
+    """
     if not (iri.startswith("http://") or iri.startswith("https://")):
         raise InvalidArgumentError(f"not an absolute http(s) IRI: {iri!r}")
 
